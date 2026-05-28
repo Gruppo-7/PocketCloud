@@ -1,50 +1,130 @@
-# Welcome to your Expo app 👋
+# PocketCloud 
+Cloud personale mobile-first, sicuro e self-hosted, progettato per offrire controllo dei dati, accesso rapido e altamente personalizzato e crittografia end-to-end.
+*Il cloud personale semplice, sicuro e sempre con te.*
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+---
 
-## Get started
+## Descrizione del progetto
 
-1. Install dependencies
+PocketCloud è un’app mobile di **cloud storage personale** che permette agli utenti di archiviare, organizzare e sincronizzare file come foto, documenti, video e note in modo semplice, sicuro e immediato, rendendoli accessibili da qualsiasi dispositivo.
 
-   ```bash
-   npm install
-   ```
+L’applicazione si rivolge principalmente a **studenti universitari**, **giovani professionisti** e a tutti gli utenti che desiderano gestire e proteggere i propri contenuti digitali in modo pratico ed efficiente.
 
-2. Start the app
+A differenza dei tradizionali servizi cloud, PocketCloud è progettata per offrire un’esperienza più **intuitiva**, **personalizzabile** e orientata all’uso quotidiano su dispositivi mobili.
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## Obiettivo
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+L’obiettivo del progetto è sviluppare un sistema di cloud personale che metta al centro:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- **Semplicità d’uso**
+- **Accessibilità immediata**
+- **Controllo completo dei dati**
+- **Massima sicurezza e privacy**
 
-## Get a fresh project
+PocketCloud punta a offrire un’alternativa più leggera e user-friendly rispetto ai servizi cloud tradizionali.
 
-When you're ready, run:
+---
 
-```bash
-npm run reset-project
-```
+## Macro-funzionalità
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- Login e registrazione utente
+-  Upload e download dei file
+-  Organizzazione dei contenuti in cartelle
+-  Ricerca rapida dei file
+-  Sistema di **organizzazione intelligente** basato su regole e parole chiave
+-  Accesso ai file anche offline (con sincronizzazione)
+-  Sincronizzazione automatica dei contenuti
+-  Condivisione sicura dei file tra utenti
 
-## Learn more
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+## Sicurezza e Privacy
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+PocketCloud introduce un modello avanzato di sicurezza basato su:
 
-## Join the community
+- **Crittografia end-to-end**
+- **Crittografia client-side** (i dati vengono cifrati direttamente sul dispositivo)
+- Le **chiavi di cifratura restano all’utente**
+- Il server **non può accedere ai contenuti**
 
-Join our community of developers creating universal apps.
+ Questo garantisce un livello di sicurezza superiore rispetto ai cloud tradizionali.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+##  Architettura Self-Hosted
+
+Uno degli elementi distintivi del progetto è la possibilità di utilizzare PocketCloud in modalità **self-hosted**:
+
+- I dati possono essere ospitati su server personali o dispositivi domestici
+- Nessuna dipendenza obbligatoria da provider esterni
+- Maggiore controllo e autonomia per l’utente
+
+---
+
+## Analisi dei Competitor
+
+### Google Drive
+-  Molto diffuso e integrato
+-  Complesso e poco focalizzato sull’uso personale
+-  Minore controllo diretto sui dati
+
+### iCloud
+-  Ottima integrazione con dispositivi Apple
+-  Limitato fuori dall’ecosistema Apple
+
+### Dropbox
+-  Semplice e affidabile
+-  Funzionalità limitate nella versione gratuita
+
+ **PocketCloud si differenzia per:**
+- Maggiore semplicità
+- Approccio mobile-first
+- Focus su privacy e controllo dei dati
+- Possibilità di self-hosting
+
+---
+
+##  Target utenti
+
+- Studenti universitari
+- Giovani professionisti
+- Utenti che vogliono gestire i propri file personali
+- Persone attente alla privacy e alla sicurezza dei dati
+
+---
+
+##  Documentazione del progetto
+
+La documentazione completa del progetto è disponibile al seguente link:
+
+👉 [Google Drive del progetto](https://drive.google.com/drive/folders/1UudkgsohFkNjmU6C0TGBcz0CjFu4KuX5?usp=drive_link)
+
+---
+
+##  Stato del progetto
+
+ In fase di progettazione
+
+-  Definizione idea
+-  Creazione repository
+-  Analisi requisiti (in corso)
+-  Sviluppo app
+
+---
+
+##  Team
+
+- Valentino Potapchuk
+- Davide Comunale
+- Gabriella D'ardia
+- Angelo Angione
+
+---
+
+##  Note
+
+Il progetto è sviluppato nell’ambito dell’Academy di Mobile Programming.
+
+---
