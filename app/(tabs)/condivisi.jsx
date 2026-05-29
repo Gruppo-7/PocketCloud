@@ -38,7 +38,7 @@ export default function SharedScreen() {
     useState("modified");
 
   /* Mock dati condivisi */
-  const sharedFiles = [
+  const [sharedFiles, setSharedFiles] = useState([
     {
       id: "1",
       name: "Tesi.pdf",
@@ -82,7 +82,17 @@ export default function SharedScreen() {
       modifiedAt:
         "2026-05-16T12:00:00",
     },
-  ];
+  ]);
+
+  const deleteFile = (fileId) => {
+    setSharedFiles(
+      (prevFiles) =>
+        prevFiles.filter(
+          (file) =>
+            file.id !== fileId
+        )
+    );
+  };
 
   const getFileType = (
     fileName
@@ -425,6 +435,7 @@ export default function SharedScreen() {
           renderSubtitle={(item) =>
             `${item.owner} • ${item.permission}`
           }
+          onDeleteFile={deleteFile}
         />
       </View>
     </SafeAreaView>

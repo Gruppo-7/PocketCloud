@@ -26,7 +26,7 @@ export default function FilesScreen() {
 
   const [sortBy, setSortBy] = useState("modified");
 
-  const files = [
+  const [files, setFiles] = useState([
     {
       id: "1",
       name: "Documento.pdf",
@@ -58,7 +58,13 @@ export default function FilesScreen() {
       modifiedAt:
         "2026-05-10T12:00:00",
     },
-  ];
+  ]);
+
+  const deleteFile = (fileId) => {
+    setFiles((prevFiles) =>
+      prevFiles.filter((file) => file.id !== fileId)
+    );
+  };
 
   const getFileType = (
     fileName
@@ -394,6 +400,7 @@ export default function FilesScreen() {
           renderSubtitle={(item) =>
             "2 MB • ieri"
           }
+          onDeleteFile={deleteFile}
         />
       </View>
     </SafeAreaView>
