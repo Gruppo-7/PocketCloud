@@ -1,5 +1,5 @@
 # PocketCloud 
-Cloud personale mobile-first, sicuro e self-hosted, progettato per offrire controllo dei dati, accesso rapido e altamente personalizzato e crittografia.
+Cloud personale mobile-first, sicuro e self-hosted, progettato per offrire controllo dei dati, accesso rapido, personalizzazione e crittografia.
 *Il cloud personale semplice, sicuro e sempre con te.*
 
 ---
