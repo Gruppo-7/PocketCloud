@@ -4,8 +4,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { router } from "expo-router";
 import { logout } from "../../utils/storage";
+import { useServerStatus } from "../../context/ServerContext";
 
 export default function SettingsScreen() {
+
+  const { serverOnline } = useServerStatus();
 
   // Logout utente
   async function handleLogout() {
@@ -93,7 +96,18 @@ export default function SettingsScreen() {
             marginBottom: 22,
           }}
         >
-          <TouchableOpacity>
+          <TouchableOpacity
+            disabled={
+              !serverOnline
+            }
+
+            style={{
+              opacity:
+                serverOnline
+                  ? 1
+                  : 0.5,
+            }}
+          >
             <SettingRow
               icon="trash-outline"
               label="Cancella cache"
@@ -121,14 +135,58 @@ export default function SettingsScreen() {
             marginBottom: 22,
           }}
         >
-          <TouchableOpacity onPress={deleteAccount}>
+          <TouchableOpacity
+            disabled={
+              !serverOnline
+            }
+
+            style={{
+              opacity:
+                serverOnline
+                  ? 1
+                  : 0.5,
+            }}
+
+            onPress={() => {
+
+              if (
+                !serverOnline
+              ) {
+                return;
+              }
+
+              deleteAccount();
+            }}
+          >
             <SettingRow
               icon="warning-outline"
               label="Elimina account"
               danger
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout}>
+          <TouchableOpacity
+            disabled={
+              !serverOnline
+            }
+
+            style={{
+              opacity:
+                serverOnline
+                  ? 1
+                  : 0.5,
+            }}
+
+            onPress={() => {
+
+             if (
+                !serverOnline
+              ) {
+                return;
+              }
+
+              handleLogout();
+            }}
+          >
             <SettingRow
               icon="log-out-outline"
               label="Logout"

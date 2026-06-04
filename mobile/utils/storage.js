@@ -123,3 +123,87 @@ export async function logout() {
         );
     }
 }
+
+export async function
+    saveCurrentUser(user) {
+
+    try {
+
+        await AsyncStorage.setItem(
+            "currentUser",
+            JSON.stringify(user)
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Save current user error:",
+            error
+        );
+    }
+}
+
+export async function
+    getCurrentUser() {
+
+    try {
+
+        const user =
+            await AsyncStorage.getItem(
+                "currentUser"
+            );
+
+        return user
+            ? JSON.parse(user)
+            : null;
+
+    } catch (error) {
+
+        console.error(
+            "Get current user error:",
+            error
+        );
+
+        return null;
+    }
+}
+
+export async function
+    removeCurrentUser() {
+
+    try {
+
+        await AsyncStorage.removeItem(
+            "currentUser"
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Remove current user error:",
+            error
+        );
+    }
+}
+
+export async function
+    saveStorageUsage(
+        storage
+    ) {
+
+    await AsyncStorage
+        .setItem(
+            "usedStorage",
+            storage
+        );
+}
+
+export async function
+    getStorageUsage() {
+
+    return await
+        AsyncStorage
+            .getItem(
+                "usedStorage"
+            );
+}

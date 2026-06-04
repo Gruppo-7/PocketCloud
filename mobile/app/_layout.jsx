@@ -1,8 +1,40 @@
-import { Stack } from 'expo-router';
+import {
+  Stack
+} from "expo-router";
 
-export default function RootLayout() {
- 
+import {
+  View
+} from "react-native";
+
+import {
+  ServerProvider
+} from "../context/ServerContext";
+
+import ServerStatusBanner
+from "../components/ServerStatusBanner";
+
+export default function
+RootLayout() {
+
   return (
-  <Stack screenOptions={{ headerShown: false }}/>  //Se si attiva nel file layout nella root è visualizzato in ogni schermata
+    <ServerProvider>
+
+      <View
+        style={{
+          flex: 1,
+        }}
+      >
+
+        <ServerStatusBanner />
+
+        <Stack
+          screenOptions={{
+            headerShown:
+              false,
+          }}
+        />
+      </View>
+
+    </ServerProvider>
   );
 }

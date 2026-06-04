@@ -1,11 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
-import { FlatList, Text, View, TouchableOpacity, TextInput, ScrollView } from "react-native";
+import { Alert, FlatList, Text, View, TouchableOpacity, TextInput, ScrollView, Linking, Platform } from "react-native";
 import FileList from "../../components/FileList";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
 import SearchBar from "../../components/SearchBar";
 import FilterChips from "../../components/FilterChips";
 import SortMenu from "../../components/SortMenu";
+import { useState } from "react";
+import FAB from "../../components/FAB";
+import useFiles from "../../hooks/useFiles";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+import { getBaseUrl } from "../../utils/api";
+import { getCurrentUser } from "../../utils/storage";
+import * as IntentLauncher from "expo-intent-launcher";
+import { getFileType } from "../../utils/fileTypes";
+import { useServerStatus } from "../../context/ServerContext";
 
 export default function FilesScreen() {
 
@@ -26,157 +36,448 @@ export default function FilesScreen() {
 
   const [sortBy, setSortBy] = useState("modified");
 
-  const [files, setFiles] = useState([
-    {
-      id: "1",
-      name: "Documento.pdf",
-      size: 2400000,
-      modifiedAt:
-        "2026-05-20T10:30:00",
-    },
+  const { serverOnline } = useServerStatus();
 
-    {
-      id: "2",
-      name: "Vacanze.jpg",
-      size: 1200000,
-      modifiedAt:
-        "2026-05-18T16:00:00",
-    },
+  const { files, setFiles, reloadFiles } = useFiles("files");
 
-    {
-      id: "3",
-      name: "Progetto.zip",
-      size: 54000000,
-      modifiedAt:
-        "2026-05-15T08:00:00",
-    },
+  async function pickDocument() {
 
-    {
-      id: "4",
-      name: "Budget.xlsx",
-      size: 890000,
-      modifiedAt:
-        "2026-05-10T12:00:00",
-    },
-  ]);
+    try {
 
-  const deleteFile = (fileId) => {
-    setFiles((prevFiles) =>
-      prevFiles.filter((file) => file.id !== fileId)
-    );
-  };
+      const result =
+        await DocumentPicker
+          .getDocumentAsync({
 
-  const getFileType = (
-    fileName
-  ) => {
+            multiple:
+              false,
 
-    const extension =
-      fileName
-        .split(".")
-        .pop()
-        ?.toLowerCase();
+            copyToCacheDirectory:
+              true,
+          });
 
-    // DOCUMENTI
-    if (
-      [
-        "pdf",
-        "doc",
-        "docx",
-        "txt",
-        "xlsx",
-        "xls",
-        "ppt",
-        "pptx",
-      ].includes(
-        extension
-      )
-    ) {
-      return "document";
-    }
+      if (
+        result.canceled
+      ) {
+        return;
+      }
 
-    // IMMAGINI
-    if (
-      [
-        "jpg",
-        "jpeg",
-        "png",
-        "gif",
-        "webp",
-        "heic",
-      ].includes(
-        extension
-      )
-    ) {
-      return "image";
-    }
+      const file = result.assets[0];
 
-    // VIDEO
-    if (
-      [
-        "mp4",
-        "mov",
-        "avi",
-        "mkv",
-        "webm",
-      ].includes(
-        extension
-      )
-    ) {
-      return "video";
-    }
+      console.log(
+        "Selected file:",
+        file
+      );
 
-    // AUDIO
-    if (
-      [
-        "mp3",
-        "wav",
-        "aac",
-        "flac",
-        "ogg",
-      ].includes(
-        extension
-      )
-    ) {
-      return "audio";
-    }
+      const user = await getCurrentUser();
 
-    return "other";
-  };
+      const formData = new FormData();
 
-  // RICERCA, ORDINAMENTO FILE E FILTRAGGIO FILE
-  const filteredFiles =
-    files.filter(
-      (file) => {
+      formData.append(
+        "file",
+        {
 
-        // ricerca testuale
-        const matchesSearch =
-          file.name
-            .toLowerCase()
-            .includes(
-              searchText
-                .toLowerCase()
-            );
+          uri:
+            file.uri,
 
-        // tipo file
-        const fileType =
-          getFileType(
-            file.name
-          );
+          name:
+            file.name,
 
-        // filtro categoria
-        const matchesType =
-          filterType ===
-            "all"
-            ? true
-            : fileType ===
-            filterType;
+          type:
+            file.mimeType
+            ||
+            "application/octet-stream",
+        }
+      );
 
-        return (
-          matchesSearch &&
-          matchesType
+      formData.append(
+        "owner_id",
+        user.id
+      );
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/files/upload`,
+          {
+
+            method:
+              "POST",
+
+            body:
+              formData,
+          }
+        );
+
+      const data =
+        await response.json();
+
+      console.log(
+        "Upload response:",
+        data
+      );
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
         );
       }
+
+      await reloadFiles();
+
+      Alert.alert(
+        "Upload riuscito",
+        file.name
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Upload error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Upload fallito"
+      );
+    }
+  }
+
+  async function
+    deleteFile(
+      fileId
+    ) {
+
+    try {
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/files/${fileId}`,
+          {
+
+            method:
+              "DELETE",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      console.log(
+        "Delete response:",
+        data
+      );
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
+        );
+      }
+
+      await reloadFiles();
+
+      Alert.alert(
+        "Eliminato",
+        "File rimosso"
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Delete error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile eliminare file"
+      );
+    }
+  }
+
+  async function
+    deleteFile(
+      fileId
+    ) {
+
+    try {
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/files/${fileId}`,
+          {
+
+            method:
+              "DELETE",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      console.log(
+        "Delete response:",
+        data
+      );
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
+        );
+      }
+
+      await reloadFiles();
+
+      Alert.alert(
+        "Eliminato",
+        "File rimosso"
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Delete error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile eliminare file"
+      );
+    }
+  }
+
+  async function openFile(file) {
+
+    try {
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const fileUri =
+        FileSystem
+          .documentDirectory
+        + file.name;
+
+      const downloadUrl =
+        `${baseUrl}/files/download/${file.id}`;
+
+      console.log(
+        "Downloading:",
+        downloadUrl
+      );
+
+      const result =
+        await FileSystem
+          .downloadAsync(
+            downloadUrl,
+            fileUri
+          );
+
+      console.log(
+        "Downloaded:",
+        result
+      );
+
+      if (
+        Platform.OS ===
+        "ios"
+      ) {
+
+        await Linking
+          .openURL(
+            result.uri
+          );
+
+      } else {
+
+        const contentUri =
+          await FileSystem
+            .getContentUriAsync(
+              result.uri
+            );
+
+        await IntentLauncher
+          .startActivityAsync(
+            "android.intent.action.VIEW",
+            {
+              data:
+                contentUri,
+
+              flags:
+                1,
+            }
+          );
+      }
+
+    } catch (error) {
+
+      console.error(
+        "Open file error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile aprire file"
+      );
+    }
+  }
+
+  async function
+    shareFile(
+      file
+    ) {
+
+    try {
+
+      if (!file) {
+        return;
+      }
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const fileUri =
+        FileSystem
+          .documentDirectory
+        + file.name;
+
+      const downloadUrl =
+        `${baseUrl}/files/download/${file.id}`;
+
+      console.log(
+        "Sharing:",
+        downloadUrl
+      );
+
+      const result =
+        await FileSystem
+          .downloadAsync(
+            downloadUrl,
+            fileUri
+          );
+
+      console.log(
+        "Downloaded for share:",
+        result
+      );
+
+      const canShare =
+        await Sharing
+          .isAvailableAsync();
+
+      console.log(
+        "Can share:",
+        canShare
+      );
+
+      if (
+        !canShare
+      ) {
+
+        Alert.alert(
+          "Errore",
+          "Apri in... non disponibile"
+        );
+
+        return;
+      }
+
+      console.log(
+        "BEFORE SHARE"
+      );
+
+      await new Promise(
+        resolve =>
+          setTimeout(
+            resolve,
+            300
+          )
+      );
+
+      const fileInfo =
+        await FileSystem
+          .getInfoAsync(
+            result.uri
+          );
+
+      console.log(
+        "File info:",
+        fileInfo
+      );
+
+      // versione minimale
+      await Sharing.shareAsync(result.uri);
+
+      console.log(
+        "AFTER SHARE"
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Share file error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile aprire 'Apri in...'"
+      );
+    }
+  }
+
+
+  // RICERCA, ORDINAMENTO FILE E FILTRAGGIO FILE
+  const filteredFiles = files.filter((file) => {
+
+    // ricerca testuale
+    const matchesSearch =
+      file.name
+        .toLowerCase()
+        .includes(
+          searchText
+            .toLowerCase()
+        );
+
+    // tipo file
+    const fileType =
+      getFileType(
+        file.name
+      );
+
+    // filtro categoria
+    const matchesType =
+      filterType ===
+        "all"
+        ? true
+        : fileType ===
+        filterType;
+
+    return (
+      matchesSearch &&
+      matchesType
     );
+  }
+  );
 
   const sortedFiles =
     [...filteredFiles].sort(
@@ -203,11 +504,11 @@ export default function FilesScreen() {
           case "modified":
             return (
               new Date(
-                b.modifiedAt
+                b.created_at
               ).getTime()
               -
               new Date(
-                a.modifiedAt
+                a.created_at
               ).getTime()
             );
 
@@ -397,12 +698,38 @@ export default function FilesScreen() {
         <FileList
           data={sortedFiles}
           gridView={gridView}
+          disabled={!serverOnline}
+
           renderSubtitle={(item) =>
             "2 MB • ieri"
           }
-          onDeleteFile={deleteFile}
+
+          onDeleteFile={
+            deleteFile
+          }
+
+          onOpenFile={
+            openFile
+          }
+
+          onShareFile={
+            shareFile
+          }
         />
       </View>
+
+      {/* PULSANTE AGGIUNGI */}
+      <FAB
+        disabled={
+          !serverOnline
+        }
+
+        onPress={
+          serverOnline
+            ? pickDocument
+            : undefined
+        }
+      />
     </SafeAreaView>
   );
 }

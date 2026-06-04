@@ -1,17 +1,185 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Text, View, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useEffect, useState } from "react";
+import { getCurrentUser, saveStorageUsage, getStorageUsage } from "../../utils/storage";
+import { getBaseUrl } from "../../utils/api";
+import { useFocusEffect } from "@react-navigation/native";
+import React from "react";
+import { useServerStatus } from "../../context/ServerContext";
 
 export default function AccountScreen() {
 
-    // Mock dati utente
-    const user = {
-        name: "Mario",
-        surname: "Rossi",
-        username: "mario.rossi",
-        email: "mario.rossi@email.com",
-        usedStorage: "2.4 GB",
-    };
+    const { serverOnline } = useServerStatus();
+
+    const [user, setUser] = useState(null);
+
+    const [usedStorage, setUsedStorage] = useState("0 MB");
+
+    useFocusEffect(
+
+        React.useCallback(
+            () => {
+
+                loadUser();
+
+            },
+            []
+        )
+    );
+
+    async function
+        loadUser() {
+
+        const cachedStorage =
+            await getStorageUsage();
+
+        if (
+            cachedStorage
+        ) {
+
+            setUsedStorage(
+                cachedStorage
+            );
+        }
+
+        try {
+
+            const currentUser =
+                await getCurrentUser();
+
+            console.log(
+                "Current user:",
+                currentUser
+            );
+
+            setUser(
+                currentUser
+            );
+
+            await loadStorageUsage(currentUser.id);
+
+        } catch (error) {
+
+            console.error(
+                "Load user error:",
+                error
+            );
+        }
+    }
+
+    async function loadStorageUsage(userId) {
+
+        if (
+            !serverOnline
+        ) {
+            return;
+        }
+
+        try {
+
+            const baseUrl =
+                await getBaseUrl();
+
+            const controller =
+                new AbortController();
+
+            const timeout =
+                setTimeout(
+                    () =>
+                        controller.abort(),
+                    700
+                );
+
+            const response =
+                await fetch(
+                    `${baseUrl}/files/storage/${userId}`,
+                    {
+                        signal:
+                            controller.signal,
+                    }
+                );
+
+            clearTimeout(
+                timeout
+            );
+
+            const data =
+                await response
+                    .json();
+
+            console.log(
+                "Storage:",
+                data
+            );
+
+            const bytes =
+                data.total;
+
+            let formattedStorage =
+                "0 MB";
+
+            if (
+                bytes < 1024
+            ) {
+
+                formattedStorage =
+                    `${bytes} B`;
+
+            } else if (
+                bytes <
+                1024 * 1024
+            ) {
+
+                formattedStorage =
+                    `${(
+                        bytes / 1024
+                    ).toFixed(2)} KB`;
+
+            } else if (
+                bytes <
+                1024 *
+                1024 *
+                1024
+            ) {
+
+                formattedStorage =
+                    `${(
+                        bytes /
+                        (
+                            1024 *
+                            1024
+                        )
+                    ).toFixed(2)} MB`;
+
+            } else {
+
+                formattedStorage =
+                    `${(
+                        bytes /
+                        (
+                            1024 *
+                            1024 *
+                            1024
+                        )
+                    ).toFixed(2)} GB`;
+            }
+
+            setUsedStorage(
+                formattedStorage
+            );
+
+            await saveStorageUsage(
+                formattedStorage
+            );
+
+        } catch (error) {
+
+            console.log(
+                "Storage unavailable"
+            );
+        }
+    }
 
     // Cambio password
     function changePassword() {
@@ -79,7 +247,7 @@ export default function AccountScreen() {
                             fontWeight: "600",
                         }}
                     >
-                        {user.name} {user.surname}
+                        {user?.first_name}{" "}{user?.last_name}
                     </Text>
 
                     <Text
@@ -88,7 +256,7 @@ export default function AccountScreen() {
                             marginTop: 4,
                         }}
                     >
-                        @{user.username}
+                        @{user?.username}
                     </Text>
                 </View>
 
@@ -99,26 +267,35 @@ export default function AccountScreen() {
                     <InfoRow
                         icon="person-outline"
                         label="Nome"
-                        value={user.name}
+                        value={
+                            user?.first_name
+                        }
                     />
 
                     <InfoRow
                         icon="person-outline"
                         label="Cognome"
-                        value={user.surname}
+                        value={
+                            user?.last_name
+                        }
                     />
 
                     <InfoRow
                         icon="at-outline"
                         label="Username"
-                        value={user.username}
+                        value={
+                            user?.username
+                        }
                     />
 
                     <InfoRow
                         icon="mail-outline"
                         label="Email"
-                        value={user.email}
+                        value={
+                            user?.email
+                        }
                     />
+
                 </View>
 
                 {/* SICUREZZA */}
@@ -148,7 +325,7 @@ export default function AccountScreen() {
                     <InfoRow
                         icon="cloud-outline"
                         label="Spazio occupato"
-                        value={user.usedStorage}
+                        value={usedStorage}
                     />
                 </View>
             </ScrollView>

@@ -1,20 +1,28 @@
-const express =
-    require("express");
+const express = require("express");
 
-const cors =
-    require("cors");
+const cors = require("cors");
 
-const app =
-    express();
+const app = express();
 
-const PORT =
-    3000;
+const PORT = 3000;
+
+const { connectDatabase } = require( "./database/db" );
+
+const authRoutes = require( "./routes/auth" );
+
+const filesRoutes = require( "./routes/files" );
+
+const sharedRoutes = require(  "./routes/shared" );
 
 app.use(cors());
 
-app.use(
-    express.json()
-);
+app.use(express.json());
+
+app.use("/auth", authRoutes);
+
+app.use( "/files", filesRoutes );
+
+app.use( "/shared", sharedRoutes );
 
 app.get(
     "/health",
@@ -34,11 +42,14 @@ app.get(
 );
 
 app.listen(
-    PORT,
-    () => {
+  PORT,
+  async () => {
 
-        console.log(
-            `Server running on port ${PORT}`
-        );
-    }
+    console.log(
+      `Server running on port ${PORT}`
+    );
+
+    await
+      connectDatabase();
+  }
 );

@@ -3,8 +3,9 @@ import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from "reac
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { saveLoginState } from "../../utils/storage";
+import { saveLoginState, saveCurrentUser } from "../../utils/storage";
 import { removeServerAddress, logout } from "../../utils/storage";
+import { getBaseUrl } from "../../utils/api";
 
 export default function AuthScreen() {
 
@@ -50,12 +51,14 @@ export default function AuthScreen() {
     }
 
     // Login
-    async function handleLogin() {
+    async function
+        handleLogin() {
 
         if (
             !email ||
             !password
         ) {
+
             Alert.alert(
                 "Errore",
                 "Compila tutti i campi"
@@ -69,6 +72,7 @@ export default function AuthScreen() {
                 email
             )
         ) {
+
             Alert.alert(
                 "Errore",
                 "Inserisci una email valida"
@@ -77,24 +81,50 @@ export default function AuthScreen() {
             return;
         }
 
-        if (
-            !isValidPassword(
-                password
-            )
-        ) {
-            Alert.alert(
-                "Errore",
-                "La password deve contenere almeno 8 caratteri"
-            );
-
-            return;
-        }
-
         try {
 
-            // Salva login
+            const baseUrl =
+                await getBaseUrl();
+
+            const response =
+                await fetch(
+                    `${baseUrl}/auth/login`,
+                    {
+
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify({
+                                email,
+                                password,
+                            }),
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (
+                !response.ok
+            ) {
+
+                throw new Error(
+                    data.error
+                );
+            }
+
             await saveLoginState(
                 true
+            );
+
+            await saveCurrentUser(
+                data.user
             );
 
             Alert.alert(
@@ -102,7 +132,6 @@ export default function AuthScreen() {
                 "Accesso eseguito"
             );
 
-            // Vai alla home
             router.replace(
                 "/(tabs)/file"
             );
@@ -111,13 +140,15 @@ export default function AuthScreen() {
 
             Alert.alert(
                 "Errore",
-                "Impossibile effettuare il login"
+                error.message ||
+                "Login fallito"
             );
         }
     }
 
     // Registrazione
-    function handleRegister() {
+    async function
+        handleRegister() {
 
         if (
             !name ||
@@ -127,6 +158,7 @@ export default function AuthScreen() {
             !password ||
             !confirmPassword
         ) {
+
             Alert.alert(
                 "Errore",
                 "Compila tutti i campi"
@@ -140,6 +172,7 @@ export default function AuthScreen() {
                 username
             )
         ) {
+
             Alert.alert(
                 "Errore",
                 "Username non valido"
@@ -153,6 +186,7 @@ export default function AuthScreen() {
                 email
             )
         ) {
+
             Alert.alert(
                 "Errore",
                 "Inserisci una email valida"
@@ -166,6 +200,7 @@ export default function AuthScreen() {
                 password
             )
         ) {
+
             Alert.alert(
                 "Errore",
                 "La password deve contenere almeno 8 caratteri"
@@ -178,6 +213,7 @@ export default function AuthScreen() {
             password !==
             confirmPassword
         ) {
+
             Alert.alert(
                 "Errore",
                 "Le password non coincidono"
@@ -186,10 +222,85 @@ export default function AuthScreen() {
             return;
         }
 
-        Alert.alert(
-            "Registrazione",
-            "Account creato"
-        );
+        try {
+
+            const baseUrl =
+                await getBaseUrl();
+
+            console.log({
+                first_name:
+                    name,
+
+                last_name:
+                    surname,
+
+                username,
+
+                email,
+
+                password,
+            });
+
+            const response =
+                await fetch(
+                    `${baseUrl}/auth/register`,
+                    {
+
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                first_name:
+                                    name,
+
+                                last_name:
+                                    surname,
+
+                                username,
+
+                                email,
+
+                                password,
+                            }),
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (
+                !response.ok
+            ) {
+
+                throw new Error(
+                    data.error
+                );
+            }
+
+            Alert.alert(
+                "Registrazione",
+                "Account creato"
+            );
+
+            setIsLogin(
+                true
+            );
+
+        } catch (error) {
+
+            Alert.alert(
+                "Errore",
+                error.message ||
+                "Registrazione fallita"
+            );
+        }
     }
 
     async function changeServer() {

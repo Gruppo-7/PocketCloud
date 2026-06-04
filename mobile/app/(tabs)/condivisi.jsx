@@ -1,13 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
 import SearchBar from "../../components/SearchBar";
-import { FlatList, Text, View, TouchableOpacity, TextInput, ScrollView } from "react-native";
+import { Alert, Text, View, TouchableOpacity } from "react-native";
 import FilterChips from "../../components/FilterChips";
 import { SafeAreaView } from "react-native-safe-area-context";
 import FileList from "../../components/FileList";
 import { useState } from "react";
 import SortMenu from "../../components/SortMenu";
+import FAB from "../../components/FAB";
+import useFiles from "../../hooks/useFiles";
+import { getFileType } from "../../utils/fileTypes";
+import { useServerStatus } from "../../context/ServerContext";
 
 export default function SharedScreen() {
+
+  const { serverOnline } = useServerStatus();
 
   const [showFilters, setShowFilters] = useState(false);
 
@@ -37,52 +43,7 @@ export default function SharedScreen() {
   const [sortBy, setSortBy] =
     useState("modified");
 
-  /* Mock dati condivisi */
-  const [sharedFiles, setSharedFiles] = useState([
-    {
-      id: "1",
-      name: "Tesi.pdf",
-
-      owner:
-        "Mario Rossi",
-
-      permission:
-        "Lettura",
-
-      modifiedAt:
-        "2026-05-20T10:30:00",
-    },
-
-    {
-      id: "2",
-      name:
-        "Budget.xlsx",
-
-      owner:
-        "Luca Verdi",
-
-      permission:
-        "Modifica",
-
-      modifiedAt:
-        "2026-05-18T16:00:00",
-    },
-
-    {
-      id: "3",
-      name:
-        "Presentazione.pptx",
-
-      owner:
-        "Giulia Bianchi",
-
-      permission:
-        "Lettura",
-
-      modifiedAt:
-        "2026-05-16T12:00:00",
-    },
-  ]);
+  const { files: sharedFiles, setFiles: setSharedFiles } = useFiles("shared");
 
   const deleteFile = (fileId) => {
     setSharedFiles(
@@ -92,83 +53,6 @@ export default function SharedScreen() {
             file.id !== fileId
         )
     );
-  };
-
-  const getFileType = (
-    fileName
-  ) => {
-
-    const extension =
-      fileName
-        .split(".")
-        .pop()
-        ?.toLowerCase();
-
-    // DOCUMENTI
-    if (
-      [
-        "pdf",
-        "doc",
-        "docx",
-        "txt",
-        "xlsx",
-        "xls",
-        "ppt",
-        "pptx",
-      ].includes(
-        extension
-      )
-    ) {
-      return "document";
-    }
-
-    // IMMAGINI
-    if (
-      [
-        "jpg",
-        "jpeg",
-        "png",
-        "gif",
-        "webp",
-        "heic",
-      ].includes(
-        extension
-      )
-    ) {
-      return "image";
-    }
-
-    // VIDEO
-    if (
-      [
-        "mp4",
-        "mov",
-        "avi",
-        "mkv",
-        "webm",
-      ].includes(
-        extension
-      )
-    ) {
-      return "video";
-    }
-
-    // AUDIO
-    if (
-      [
-        "mp3",
-        "wav",
-        "aac",
-        "flac",
-        "ogg",
-      ].includes(
-        extension
-      )
-    ) {
-      return "audio";
-    }
-
-    return "other";
   };
 
   //RICERCA, ORDINAMENTO E FILTRAGGIO FILE
@@ -231,11 +115,11 @@ export default function SharedScreen() {
           case "modified":
             return (
               new Date(
-                b.modifiedAt
+                b.updated_at
               ).getTime()
               -
               new Date(
-                a.modifiedAt
+                a.updated_at
               ).getTime()
             );
 
@@ -430,6 +314,9 @@ export default function SharedScreen() {
 
         {/* LISTA */}
         <FileList
+          disabled={
+            !serverOnline
+          }
           data={sortedFiles}
           gridView={gridView}
           renderSubtitle={(item) =>
@@ -438,6 +325,59 @@ export default function SharedScreen() {
           onDeleteFile={deleteFile}
         />
       </View>
+
+      {/* PULSANTE AGGIUNGI */}
+      <FAB
+        disabled={
+          !serverOnline
+        }
+
+        icon="person-add"
+
+        onPress={
+          serverOnline
+            ? () =>
+              Alert.alert(
+                "Condividi file",
+
+                "Scegli origine file",
+
+                [
+                  {
+                    text:
+                      "Dal cloud",
+
+                    onPress:
+                      () =>
+                        Alert.alert(
+                          "In arrivo"
+                        ),
+                  },
+
+                  {
+                    text:
+                      "Dal dispositivo",
+
+                    onPress:
+                      () =>
+                        Alert.alert(
+                          "In arrivo"
+                        ),
+                  },
+
+                  {
+                    text:
+                      "Annulla",
+
+                    style:
+                      "cancel",
+                  },
+                ]
+              )
+            : undefined
+        }
+      />
+
     </SafeAreaView>
   );
 }

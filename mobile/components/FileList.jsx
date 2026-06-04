@@ -1,12 +1,15 @@
-import { FlatList, Text, View, TouchableOpacity, Modal, Pressable } from "react-native";
+import { Alert, FlatList, Text, View, TouchableOpacity, Modal, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 
 export default function FileList({
     data,
     gridView,
+    disabled = false,
     renderSubtitle,
     onDeleteFile,
+    onOpenFile,
+    onShareFile,
 }) {
     const [selectedFile, setSelectedFile] = useState(null);
 
@@ -17,21 +20,96 @@ export default function FileList({
         }
     }
 
+    function handleDetails() {
+
+        if (
+            !selectedFile
+        ) {
+            return;
+        }
+
+        Alert.alert(
+            "Dettagli file",
+
+            `Nome:
+${selectedFile.name}
+
+Dimensione:
+${(
+                selectedFile.size
+                / 1024
+            ).toFixed(2)} KB
+
+Tipo:
+${selectedFile.mime_type
+            || "Sconosciuto"}
+
+Creato:
+${new Date(
+                selectedFile.created_at
+            ).toLocaleString()}`
+        );
+    }
+
     function renderItem({ item }) {
         return (
-            <View
+            <TouchableOpacity
+                disabled={
+                    disabled
+                }
+
+                onPress={() => {
+
+                    if (
+                        disabled
+                    ) {
+                        return;
+                    }
+
+                    onOpenFile?.(
+                        item
+                    );
+                }}
+
                 style={{
-                    flex: gridView ? 0.48 : undefined,
-                    flexDirection: gridView ? "column" : "row",
-                    alignItems: "center",
-                    backgroundColor: "#fff",
-                    borderRadius: 16,
-                    padding: 16,
-                    marginBottom: 14,
-                    borderWidth: 1,
-                    borderColor: "#ECECEC",
+                    opacity:
+                        disabled
+                            ? 0.5
+                            : 1,
+
+                    flex:
+                        gridView
+                            ? 0.48
+                            : undefined,
+
+                    flexDirection:
+                        gridView
+                            ? "column"
+                            : "row",
+
+                    alignItems:
+                        "center",
+
+                    backgroundColor:
+                        "#fff",
+
+                    borderRadius:
+                        16,
+
+                    padding:
+                        16,
+
+                    marginBottom:
+                        14,
+
+                    borderWidth:
+                        1,
+
+                    borderColor:
+                        "#ECECEC",
                 }}
             >
+
                 <Ionicons
                     name="document"
                     size={gridView ? 48 : 26}
@@ -67,20 +145,88 @@ export default function FileList({
                     )}
                 </View>
 
-                {!gridView && (
-                    <TouchableOpacity onPress={() => setSelectedFile(item)}>
-                        <Ionicons
-                            name="ellipsis-vertical"
-                            size={20}
-                        />
-                    </TouchableOpacity>
-                )}
-            </View>
+                <TouchableOpacity
+                    disabled={
+                        disabled
+                    }
+
+                    onPress={() => {
+
+                        if (
+                            disabled
+                        ) {
+                            return;
+                        }
+
+                        setSelectedFile(
+                            item
+                        );
+                    }}
+
+                    style={{
+                        position:
+                            gridView
+                                ? "absolute"
+                                : "relative",
+
+                        top:
+                            gridView
+                                ? 10
+                                : undefined,
+
+                        right:
+                            gridView
+                                ? 10
+                                : undefined,
+
+                        padding: 4,
+                    }}
+                >
+                    <Ionicons
+                        name="ellipsis-vertical"
+                        size={20}
+                    />
+                </TouchableOpacity>
+            </TouchableOpacity>
         );
     }
 
     return (
         <>
+
+            {disabled && (
+                <View
+                    style={{
+                        position:
+                            "absolute",
+
+                        top: "45%",
+
+                        left: 0,
+
+                        right: 0,
+
+                        zIndex: 10,
+
+                        alignItems:
+                            "center",
+                    }}
+                >
+                    <Text
+                        style={{
+                            fontSize: 16,
+                            fontWeight:
+                                "600",
+                            color:
+                                "#666",
+                        }}
+                    >
+                        ⚠️ Riconnessione
+                        al server...
+                    </Text>
+                </View>
+            )}
+
             <FlatList
                 key={gridView ? "grid" : "list"}
                 data={data}
@@ -128,14 +274,95 @@ export default function FileList({
                         <Text
                             style={{
                                 fontWeight: "700",
-                                marginBottom: 12,
+                                marginBottom: 16,
+                                fontSize: 16,
                             }}
                         >
                             {selectedFile?.name}
                         </Text>
 
                         <TouchableOpacity
+                            onPress={() => {
+
+                                const file =
+                                    selectedFile;
+
+                                setSelectedFile(
+                                    null
+                                );
+
+                                onOpenFile?.(
+                                    file
+                                );
+                            }}
+
+                            style={{
+                                paddingVertical: 12,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 16,
+                                }}
+                            >
+                                Apri
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => {
+
+                                const file =
+                                    selectedFile;
+
+                                setSelectedFile(
+                                    null
+                                );
+
+                                onShareFile?.(
+                                    file
+                                );
+                            }}
+
+                            style={{
+                                paddingVertical: 12,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 16,
+                                }}
+                            >
+                                Apri in...
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => {
+
+                                setSelectedFile(
+                                    null
+                                );
+
+                                handleDetails();
+                            }}
+
+                            style={{
+                                paddingVertical: 12,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 16,
+                                }}
+                            >
+                                Dettagli
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                             onPress={handleDelete}
+
                             style={{
                                 paddingVertical: 12,
                             }}
@@ -151,7 +378,7 @@ export default function FileList({
                         </TouchableOpacity>
                     </View>
                 </Pressable>
-            </Modal>
+            </Modal >
         </>
     );
 }

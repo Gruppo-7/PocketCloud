@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { saveServerAddress } from "../../utils/storage";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BASE_URL } from "../../utils/api";
 
 export default function SetupScreen() {
 
@@ -12,6 +13,8 @@ export default function SetupScreen() {
 
     // Stato connessione
     const [connectionStatus, setConnectionStatus] = useState("idle");
+
+    const [isTesting, setIsTesting] = useState(false);
 
     // Validazione IP o dominio
     function isValidServerAddress(address) {
@@ -29,9 +32,11 @@ export default function SetupScreen() {
     }
 
     // Test connessione mock
-    function testConnection() {
+    async function
+        testConnection() {
 
         if (!serverAddress) {
+
             Alert.alert(
                 "Errore",
                 "Inserisci un indirizzo server"
@@ -40,7 +45,12 @@ export default function SetupScreen() {
             return;
         }
 
-        if (!isValidServerAddress(serverAddress)) {
+        if (
+            !isValidServerAddress(
+                serverAddress
+            )
+        ) {
+
             Alert.alert(
                 "Errore",
                 "Inserisci un IP o dominio valido"
@@ -49,21 +59,84 @@ export default function SetupScreen() {
             return;
         }
 
-        // Mock backend
-        const serverOnline = true;
+        setIsTesting(
+            true
+        );
 
-        if (serverOnline) {
+        setConnectionStatus(
+            "idle"
+        );
 
-            setConnectionStatus(
-                "success"
+        try {
+
+            const controller =
+                new AbortController();
+
+            const timeout =
+                setTimeout(
+                    () => {
+
+                        controller
+                            .abort();
+
+                    },
+                    1100
+                );
+
+            const response =
+                await fetch(
+                    `http://${serverAddress}:3000/health`,
+                    {
+                        signal:
+                            controller
+                                .signal,
+                    }
+                );
+
+            clearTimeout(
+                timeout
             );
 
-            Alert.alert(
-                "Connessione riuscita",
-                `Server raggiungibile\nhttp://${serverAddress}:3000`
-            );
+            if (
+                !response.ok
+            ) {
 
-        } else {
+                throw new Error(
+                    "Server error"
+                );
+            }
+
+            const data =
+                await response
+                    .json();
+
+            if (
+                data.status ===
+                "online"
+            ) {
+
+                setConnectionStatus(
+                    "success"
+                );
+
+                Alert.alert(
+                    "Connessione riuscita",
+                    `Server raggiungibile\nhttp://${serverAddress}:3000`
+                );
+
+            } else {
+
+                throw new Error(
+                    "Server offline"
+                );
+            }
+
+        } catch (error) {
+
+            console.log(
+                "Connection error:",
+                error
+            );
 
             setConnectionStatus(
                 "error"
@@ -72,6 +145,12 @@ export default function SetupScreen() {
             Alert.alert(
                 "Errore",
                 "Server non raggiungibile"
+            );
+
+        } finally {
+
+            setIsTesting(
+                false
             );
         }
     }
@@ -263,6 +342,10 @@ export default function SetupScreen() {
 
                     {/* Test connessione */}
                     <TouchableOpacity
+                        disabled={
+                            isTesting
+                        }
+
                         onPress={
                             testConnection
                         }
@@ -292,7 +375,11 @@ export default function SetupScreen() {
                                 fontSize: 16,
                             }}
                         >
-                            Test connessione
+                            {
+                                isTesting
+                                    ? "Verifica..."
+                                    : "Test connessione"
+                            }
                         </Text>
                     </TouchableOpacity>
 
