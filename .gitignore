@@ -46,5 +46,5 @@ app-example
 .vscode/
 
 #storage
-storage/*
-!storage/.gitkeep
+/server/storage/*
+!/server/storage/.gitkeep
