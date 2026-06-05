@@ -16,6 +16,7 @@ import { getCurrentUser } from "../../utils/storage";
 import * as IntentLauncher from "expo-intent-launcher";
 import { getFileType } from "../../utils/fileTypes";
 import { useServerStatus } from "../../context/ServerContext";
+import SelectionHeader from "../../components/SelectionHeader";
 
 export default function FilesScreen() {
 
@@ -35,6 +36,10 @@ export default function FilesScreen() {
   const [showSortMenu, setShowSortMenu] = useState(false);
 
   const [sortBy, setSortBy] = useState("modified");
+
+  const [selectedFiles, setSelectedFiles] = useState([]);
+
+  const [selectionMode, setSelectionMode] = useState(false);
 
   const { serverOnline } = useServerStatus();
 
@@ -535,111 +540,137 @@ export default function FilesScreen() {
       >
 
         {/* HEADER */}
-        <View
-          style={{
-            flexDirection:
-              "row",
 
-            justifyContent:
-              "space-between",
+        {
+          selectionMode
+            ? (
 
-            alignItems:
-              "center",
+              <SelectionHeader
+                selectedCount={
+                  selectedFiles.length
+                }
 
-            marginBottom:
-              20,
-          }}
-        >
-          <TouchableOpacity
-            onPress={() =>
-              setShowSortMenu(
-                !showSortMenu
-              )
-            }
+                onClose={() => {
 
-            style={{
-              flexDirection:
-                "row",
+                  setSelectedFiles(
+                    []
+                  );
 
-              alignItems:
-                "center",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 26,
-                fontWeight:
-                  "600",
-              }}
-            >
-              {
-                {
-                  name: "Nome",
+                  setSelectionMode(
+                    false
+                  );
+                }}
+              />
 
-                  modified:
-                    "Ultima modifica",
+            ) : (
 
-                  size:
-                    "Dimensione",
-                }[
-                sortBy
-                ]
-              }
-            </Text>
+              <View
+                style={{
+                  flexDirection:
+                    "row",
 
-            <Ionicons
-              name="chevron-down"
-              size={18}
-              style={{
-                marginLeft: 4,
-              }}
-            />
-          </TouchableOpacity>
+                  justifyContent:
+                    "space-between",
 
-          <View
-            style={{
-              flexDirection:
-                "row",
+                  alignItems:
+                    "center",
 
-              gap: 18,
-            }}
-          >
-            <Ionicons
-              name="search"
-              size={26}
-              onPress={() =>
-                setShowSearch(
-                  !showSearch
-                )
-              }
-            />
+                  marginBottom:
+                    20,
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() =>
+                    setShowSortMenu(
+                      !showSortMenu
+                    )
+                  }
 
-            <Ionicons
-              name={
-                gridView
-                  ? "list"
-                  : "grid"
-              }
-              size={26}
-              onPress={() =>
-                setGridView(
-                  !gridView
-                )
-              }
-            />
+                  style={{
+                    flexDirection:
+                      "row",
 
-            <Ionicons
-              name="options-outline"
-              size={26}
-              onPress={() =>
-                setShowFilters(
-                  !showFilters
-                )
-              }
-            />
-          </View>
-        </View>
+                    alignItems:
+                      "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 26,
+                      fontWeight:
+                        "600",
+                    }}
+                  >
+                    {
+                      {
+                        name:
+                          "Nome",
 
+                        modified:
+                          "Ultima modifica",
+
+                        size:
+                          "Dimensione",
+                      }[
+                      sortBy
+                      ]
+                    }
+                  </Text>
+
+                  <Ionicons
+                    name="chevron-down"
+                    size={18}
+                    style={{
+                      marginLeft: 4,
+                    }}
+                  />
+                </TouchableOpacity>
+
+                <View
+                  style={{
+                    flexDirection:
+                      "row",
+
+                    gap: 18,
+                  }}
+                >
+                  <Ionicons
+                    name="search"
+                    size={26}
+                    onPress={() =>
+                      setShowSearch(
+                        !showSearch
+                      )
+                    }
+                  />
+
+                  <Ionicons
+                    name={
+                      gridView
+                        ? "list"
+                        : "grid"
+                    }
+                    size={26}
+                    onPress={() =>
+                      setGridView(
+                        !gridView
+                      )
+                    }
+                  />
+
+                  <Ionicons
+                    name="options-outline"
+                    size={26}
+                    onPress={() =>
+                      setShowFilters(
+                        !showFilters
+                      )
+                    }
+                  />
+                </View>
+              </View>
+            )
+        }
         {/* MENU ORDINAMENTO */}
         <SortMenu
           showSortMenu={
@@ -714,6 +745,22 @@ export default function FilesScreen() {
 
           onShareFile={
             shareFile
+          }
+          
+          selectedFiles={
+            selectedFiles
+          }
+
+          setSelectedFiles={
+            setSelectedFiles
+          }
+
+          selectionMode={
+            selectionMode
+          }
+
+          setSelectionMode={
+            setSelectionMode
           }
         />
       </View>

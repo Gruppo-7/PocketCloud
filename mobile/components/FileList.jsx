@@ -5,6 +5,10 @@ import { useState } from "react";
 export default function FileList({
     data,
     gridView,
+    selectedFiles,
+    setSelectedFiles,
+    selectionMode,
+    setSelectionMode,
     disabled = false,
     renderSubtitle,
     onDeleteFile,
@@ -28,8 +32,7 @@ export default function FileList({
             return;
         }
 
-        Alert.alert(
-            "Dettagli file",
+        Alert.alert("Dettagli file",
 
             `Nome:
 ${selectedFile.name}
@@ -51,6 +54,55 @@ ${new Date(
         );
     }
 
+    function
+        toggleFileSelection(
+            file
+        ) {
+
+        const alreadySelected =
+            selectedFiles.some(
+                f =>
+                    f.id ===
+                    file.id
+            );
+
+        let updatedFiles;
+
+        if (
+            alreadySelected
+        ) {
+
+            updatedFiles =
+                selectedFiles.filter(
+                    f =>
+                        f.id !==
+                        file.id
+                );
+
+        } else {
+
+            updatedFiles =
+                [
+                    ...selectedFiles,
+                    file
+                ];
+        }
+
+        setSelectedFiles(
+            updatedFiles
+        );
+
+        if (
+            updatedFiles.length ===
+            0
+        ) {
+
+            setSelectionMode(
+                false
+            );
+        }
+    }
+
     function renderItem({ item }) {
         return (
             <TouchableOpacity
@@ -66,9 +118,42 @@ ${new Date(
                         return;
                     }
 
+                    if (
+                        selectionMode
+                    ) {
+
+                        toggleFileSelection(
+                            item
+                        );
+
+                        return;
+                    }
+
                     onOpenFile?.(
                         item
                     );
+                }}
+
+                onLongPress={() => {
+
+                    if (
+                        disabled
+                    ) {
+                        return;
+                    }
+
+                    if (
+                        !selectionMode
+                    ) {
+
+                        setSelectionMode(
+                            true
+                        );
+
+                        setSelectedFiles(
+                            [item]
+                        );
+                    }
                 }}
 
                 style={{
@@ -91,7 +176,13 @@ ${new Date(
                         "center",
 
                     backgroundColor:
-                        "#fff",
+                        selectedFiles.some(
+                            f =>
+                                f.id ===
+                                item.id
+                        )
+                            ? "#E8F1FF"
+                            : "#fff",
 
                     borderRadius:
                         16,
@@ -106,7 +197,13 @@ ${new Date(
                         1,
 
                     borderColor:
-                        "#ECECEC",
+                        selectedFiles.some(
+                            f =>
+                                f.id ===
+                                item.id
+                        )
+                            ? "#007AFF"
+                            : "#ECECEC",
                 }}
             >
 
@@ -114,6 +211,40 @@ ${new Date(
                     name="document"
                     size={gridView ? 48 : 26}
                 />
+
+                {
+                    selectedFiles.some(
+                        f =>
+                            f.id ===
+                            item.id
+                    ) && (
+
+                        <View
+                            style={{
+                                position:
+                                    "absolute",
+
+                                top: 10,
+
+                                left: 10,
+
+                                backgroundColor:
+                                    "#007AFF",
+
+                                borderRadius:
+                                    12,
+
+                                padding: 2,
+                            }}
+                        >
+                            <Ionicons
+                                name="checkmark"
+                                size={16}
+                                color="#fff"
+                            />
+                        </View>
+                    )
+                }
 
                 <View
                     style={{

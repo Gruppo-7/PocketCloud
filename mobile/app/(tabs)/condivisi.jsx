@@ -10,6 +10,7 @@ import FAB from "../../components/FAB";
 import useFiles from "../../hooks/useFiles";
 import { getFileType } from "../../utils/fileTypes";
 import { useServerStatus } from "../../context/ServerContext";
+import SelectionHeader from "../../components/SelectionHeader";
 
 export default function SharedScreen() {
 
@@ -42,6 +43,18 @@ export default function SharedScreen() {
   /* Ordinamento attuale */
   const [sortBy, setSortBy] =
     useState("modified");
+
+  const [
+    selectedFiles,
+    setSelectedFiles
+  ] =
+    useState([]);
+
+  const [
+    selectionMode,
+    setSelectionMode
+  ] =
+    useState(false);
 
   const { files: sharedFiles, setFiles: setSharedFiles } = useFiles("shared");
 
@@ -146,238 +159,279 @@ export default function SharedScreen() {
       >
 
         {/* HEADER */}
-        <View
-          style={{
-            flexDirection:
-              "row",
 
-            justifyContent:
-              "space-between",
+        {
+          selectionMode
+            ? (
 
-            alignItems:
-              "center",
+              <SelectionHeader
+                selectedCount={
+                  selectedFiles.length
+                }
 
-            marginBottom:
-              20,
-          }}
-        >
-          {/* ORDINAMENTO */}
-          <TouchableOpacity
-            onPress={() =>
-              setShowSortMenu(
-                !showSortMenu
-              )
-            }
+                onClose={() => {
 
-            style={{
-              flexDirection:
-                "row",
+                  setSelectedFiles(
+                    []
+                  );
 
-              alignItems:
-                "center",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 26,
-                fontWeight:
-                  "600",
-              }}
-            >
-              {
-                {
-                  name:
-                    "Nome",
+                  setSelectionMode(
+                    false
+                  );
+                }}
+              />
 
-                  modified:
-                    "Ultima modifica",
+            ) : (
 
-                  owner:
-                    "Condiviso da",
-                }[
-                sortBy
-                ]
-              }
-            </Text>
+              <View
+                style={{
+                  flexDirection:
+                    "row",
 
-            <Ionicons
-              name="chevron-down"
-              size={18}
-              style={{
-                marginLeft:
-                  4,
-              }}
-            />
-          </TouchableOpacity>
+                  justifyContent:
+                    "space-between",
 
-          {/* AZIONI HEADER */}
-          <View
-            style={{
-              flexDirection:
-                "row",
+                  alignItems:
+                    "center",
 
-              gap: 18,
-            }}
-          >
-            <Ionicons
-              name="search"
-              size={26}
-              onPress={() =>
-                setShowSearch(
-                  !showSearch
-                )
-              }
-            />
+                  marginBottom:
+                    20,
+                }}
+              >
+                {/* ORDINAMENTO */}
+                <TouchableOpacity
+                  onPress={() =>
+                    setShowSortMenu(
+                      !showSortMenu
+                    )
+                  }
 
-            <Ionicons
-              name={
-                gridView
-                  ? "list"
-                  : "grid"
-              }
+                  style={{
+                    flexDirection:
+                      "row",
 
-              size={26}
+                    alignItems:
+                      "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 26,
+                      fontWeight:
+                        "600",
+                    }}
+                  >
+                    {
+                      {
+                        name:
+                          "Nome",
 
-              onPress={() =>
-                setGridView(
-                  !gridView
-                )
-              }
-            />
+                        modified:
+                          "Ultima modifica",
 
-            <Ionicons
-              name="options-outline"
-              size={26}
-              onPress={() =>
-                setShowFilters(
-                  !showFilters
-                )
-              }
-            />
-          </View>
-        </View>
+                        owner:
+                          "Condiviso da",
+                      }[
+                      sortBy
+                      ]
+                    }
+                  </Text>
 
-        {/* SEARCH BAR */}
-        {showSearch && (
-          <SearchBar
-            value={searchText}
-            onChangeText={
-              setSearchText
-            }
-            placeholder="Cerca file condivisi"
-          />
-        )}
+                  <Ionicons
+                    name="chevron-down"
+                    size={18}
+                    style={{
+                      marginLeft:
+                        4,
+                    }}
+                  />
+                </TouchableOpacity>
 
-        {/* MENU ORDINAMENTO */}
-        <SortMenu
-          showSortMenu={
-            showSortMenu
-          }
+                {/* AZIONI */}
+                <View
+                  style={{
+                    flexDirection:
+                      "row",
 
-          setShowSortMenu={
-            setShowSortMenu
-          }
+                    gap: 18,
+                  }}
+                >
+                  <Ionicons
+                    name="search"
+                    size={26}
+                    onPress={() =>
+                      setShowSearch(
+                        !showSearch
+                      )
+                    }
+                  />
 
-          sortBy={sortBy}
+                  <Ionicons
+                    name={
+                      gridView
+                        ? "list"
+                        : "grid"
+                    }
 
-          setSortBy={
-            setSortBy
-          }
+                    size={26}
 
-          options={[
-            {
-              key: "name",
-              label: "Nome",
-            },
-            {
-              key: "modified",
-              label:
-                "Ultima modifica",
-            },
-            {
-              key: "size",
-              label:
-                "Dimensione",
-            },
-          ]}
-        />
+                    onPress={() =>
+                      setGridView(
+                        !gridView
+                      )
+                    }
+                  />
 
-        {/* FILTRI */}
-        <FilterChips
-          visible={showFilters}
-          gridView={gridView}
-          selectedFilter={filterType}
-          setSelectedFilter={
-            setFilterType
-          }
-        />
-
-        {/* LISTA */}
-        <FileList
-          disabled={
-            !serverOnline
-          }
-          data={sortedFiles}
-          gridView={gridView}
-          renderSubtitle={(item) =>
-            `${item.owner} • ${item.permission}`
-          }
-          onDeleteFile={deleteFile}
-        />
-      </View>
-
-      {/* PULSANTE AGGIUNGI */}
-      <FAB
-        disabled={
-          !serverOnline
+                  <Ionicons
+                    name="options-outline"
+                    size={26}
+                    onPress={() =>
+                      setShowFilters(
+                        !showFilters
+                      )
+                    }
+                  />
+                </View>
+              </View>
+            )
         }
 
-        icon="person-add"
+      {/* SEARCH BAR */}
+      {showSearch && (
+        <SearchBar
+          value={searchText}
+          onChangeText={
+            setSearchText
+          }
+          placeholder="Cerca file condivisi"
+        />
+      )}
 
-        onPress={
-          serverOnline
-            ? () =>
-              Alert.alert(
-                "Condividi file",
+      {/* MENU ORDINAMENTO */}
+      <SortMenu
+        showSortMenu={
+          showSortMenu
+        }
 
-                "Scegli origine file",
+        setShowSortMenu={
+          setShowSortMenu
+        }
 
-                [
-                  {
-                    text:
-                      "Dal cloud",
+        sortBy={sortBy}
 
-                    onPress:
-                      () =>
-                        Alert.alert(
-                          "In arrivo"
-                        ),
-                  },
+        setSortBy={
+          setSortBy
+        }
 
-                  {
-                    text:
-                      "Dal dispositivo",
+        options={[
+          {
+            key: "name",
+            label: "Nome",
+          },
+          {
+            key: "modified",
+            label:
+              "Ultima modifica",
+          },
+          {
+            key: "size",
+            label:
+              "Dimensione",
+          },
+        ]}
+      />
 
-                    onPress:
-                      () =>
-                        Alert.alert(
-                          "In arrivo"
-                        ),
-                  },
-
-                  {
-                    text:
-                      "Annulla",
-
-                    style:
-                      "cancel",
-                  },
-                ]
-              )
-            : undefined
+      {/* FILTRI */}
+      <FilterChips
+        visible={showFilters}
+        gridView={gridView}
+        selectedFilter={filterType}
+        setSelectedFilter={
+          setFilterType
         }
       />
 
-    </SafeAreaView>
+      {/* LISTA */}
+      <FileList
+        disabled={
+          !serverOnline
+        }
+        data={sortedFiles}
+        gridView={gridView}
+        selectedFiles={
+          selectedFiles
+        }
+
+        setSelectedFiles={
+          setSelectedFiles
+        }
+
+        selectionMode={
+          selectionMode
+        }
+
+        setSelectionMode={
+          setSelectionMode
+        }
+        renderSubtitle={(item) =>
+          `${item.owner} • ${item.permission}`
+        }
+        onDeleteFile={deleteFile}
+      />
+    </View>
+
+      {/* PULSANTE AGGIUNGI */ }
+  <FAB
+    disabled={
+      !serverOnline
+    }
+
+    icon="person-add"
+
+    onPress={
+      serverOnline
+        ? () =>
+          Alert.alert(
+            "Condividi file",
+
+            "Scegli origine file",
+
+            [
+              {
+                text:
+                  "Dal cloud",
+
+                onPress:
+                  () =>
+                    Alert.alert(
+                      "In arrivo"
+                    ),
+              },
+
+              {
+                text:
+                  "Dal dispositivo",
+
+                onPress:
+                  () =>
+                    Alert.alert(
+                      "In arrivo"
+                    ),
+              },
+
+              {
+                text:
+                  "Annulla",
+
+                style:
+                  "cancel",
+              },
+            ]
+          )
+        : undefined
+    }
+  />
+
+    </SafeAreaView >
   );
 }
