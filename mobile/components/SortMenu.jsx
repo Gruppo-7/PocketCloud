@@ -6,6 +6,8 @@ export default function SortMenu({
   setShowSortMenu,
   sortBy,
   setSortBy,
+  sortDirection,
+  setSortDirection,
   options,
 }) {
 
@@ -48,13 +50,41 @@ export default function SortMenu({
 
             onPress={function () {
 
-              setSortBy(
+              if (
+                sortBy ===
                 option.key
-              );
+              ) {
+
+                setSortDirection(
+                  prev =>
+                    prev ===
+                      "asc"
+
+                      ? "desc"
+
+                      : "asc"
+                );
+
+              } else {
+
+                setSortBy(
+                  option.key
+                );
+
+                setSortDirection(
+                  option.key ===
+                    "modified"
+
+                    ? "desc"
+
+                    : "asc"
+                );
+              }
 
               setShowSortMenu(
                 false
               );
+
             }}
 
             style={{

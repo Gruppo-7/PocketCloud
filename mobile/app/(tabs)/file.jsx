@@ -18,35 +18,33 @@ import { getFileType } from "../../utils/fileTypes";
 import { useServerStatus } from "../../context/ServerContext";
 import SelectionHeader from "../../components/SelectionHeader";
 import SelectionMenu from "../../components/SelectionMenu";
+import useFolders from "../../hooks/useFolders";
+import FolderCard from "../../components/FolderCard";
+import CreateFolderModal from "../../components/CreateFolderModal";
 
 export default function FilesScreen() {
 
   const [showFilters, setShowFilters] = useState(false);
-
   const [filterType, setFilterType] = useState("all");
-
   const [showSearch, setShowSearch] = useState(false);
-
   const [searchText, setSearchText] = useState("");
-
   const [gridView, setGridView] = useState(false);
 
   /* False -> elenco
      True -> griglia */
 
   const [showSortMenu, setShowSortMenu] = useState(false);
-
-  const [sortBy, setSortBy] = useState("modified");
-
+  const [sortBy, setSortBy] = useState("name");
+  const [sortDirection, setSortDirection] = useState("asc");
   const [selectedFiles, setSelectedFiles] = useState([]);
-
   const [selectionMode, setSelectionMode] = useState(false);
-
   const [showSelectionMenu, setShowSelectionMenu] = useState(false);
-
   const { serverOnline } = useServerStatus();
-
   const { files, setFiles, reloadFiles } = useFiles("files");
+  const { folders, setFolders } = useFolders();
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [currentFolder, setCurrentFolder] = useState(null);
+  const [folderHistory, setFolderHistory] = useState([]);
 
   async function pickDocument() {
 
@@ -102,6 +100,13 @@ export default function FilesScreen() {
         user.id
       );
 
+      formData.append(
+        "folder_id",
+        currentFolder
+          ?.id
+        ?? ""
+      );
+
       const baseUrl =
         await getBaseUrl();
 
@@ -152,6 +157,78 @@ export default function FilesScreen() {
       Alert.alert(
         "Errore",
         "Upload fallito"
+      );
+    }
+  }
+
+  async function
+    createFolder(
+      folderName
+    ) {
+
+    try {
+
+      const user =
+        await
+          getCurrentUser();
+
+      const baseUrl =
+        await
+          getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/folders`,
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                ownerId:
+                  user.id,
+
+                name:
+                  folderName,
+
+                parentFolderId:
+                  currentFolder
+                    ?.id
+                  ?? null,
+              }),
+          }
+        );
+
+      const createdFolder =
+        await response.json();
+
+      setFolders(
+        prev => (
+          [
+            ...prev,
+            createdFolder,
+          ]
+        )
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Create folder error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+
+        "Impossibile creare la cartella"
       );
     }
   }
@@ -395,9 +472,21 @@ export default function FilesScreen() {
     }
   }
 
+  const visibleFiles =
+    files.filter(
+      file =>
+        file.folder_id
+        ===
+        (
+          currentFolder
+            ?.id
+          ?? null
+        )
+    );
+
 
   // RICERCA, ORDINAMENTO FILE E FILTRAGGIO FILE
-  const filteredFiles = files.filter((file) => {
+  const filteredFiles = visibleFiles.filter((file) => {
 
     // ricerca testuale
     const matchesSearch =
@@ -430,43 +519,65 @@ export default function FilesScreen() {
   );
 
   const sortedFiles =
-    [...filteredFiles].sort(
-      (a, b) => {
+    [...filteredFiles]
+      .sort(
+        (a, b) => {
 
-        switch (
-        sortBy
-        ) {
+          let result =
+            0;
 
-          case "name":
-            return a.name
-              .toLowerCase()
-              .localeCompare(
-                b.name
+          switch (
+          sortBy
+          ) {
+
+            case "name":
+
+              result =
+                a.name
                   .toLowerCase()
-              );
+                  .localeCompare(
+                    b.name
+                      .toLowerCase()
+                  );
 
-          case "size":
-            return (
-              b.size -
-              a.size
-            );
+              break;
 
-          case "modified":
-            return (
-              new Date(
-                b.created_at
-              ).getTime()
-              -
-              new Date(
-                a.created_at
-              ).getTime()
-            );
+            case "size":
 
-          default:
-            return 0;
+              result =
+                a.size -
+                b.size;
+
+              break;
+
+            case "modified":
+
+              result =
+                new Date(
+                  a.updated_at
+                ).getTime()
+                -
+                new Date(
+                  b.updated_at
+                ).getTime();
+
+              break;
+
+            default:
+              result =
+                0;
+          }
+
+          return (
+            sortDirection
+              === "asc"
+
+              ? result
+
+              : -result
+          );
         }
-      }
-    );
+      );
 
   return (
     <SafeAreaView
@@ -530,12 +641,14 @@ export default function FilesScreen() {
                     20,
                 }}
               >
+
                 <TouchableOpacity
-                  onPress={() =>
+                  onPress={() => {
+
                     setShowSortMenu(
                       !showSortMenu
-                    )
-                  }
+                    );
+                  }}
 
                   style={{
                     flexDirection:
@@ -545,36 +658,89 @@ export default function FilesScreen() {
                       "center",
                   }}
                 >
+
+                  {
+                    currentFolder && (
+
+                      <TouchableOpacity
+                        onPress={() => {
+
+                          const previousFolder =
+                            folderHistory[
+                            folderHistory
+                              .length - 1
+                            ];
+
+                          setFolderHistory(
+                            prev =>
+                              prev.slice(
+                                0,
+                                -1
+                              )
+                          );
+
+                          setCurrentFolder(
+                            previousFolder
+                          );
+                        }}
+
+                        style={{
+                          marginRight:
+                            8,
+                        }}
+                      >
+                        <Ionicons
+                          name=
+                          "arrow-back"
+
+                          size={24}
+                        />
+                      </TouchableOpacity>
+                    )
+                  }
+
                   <Text
                     style={{
-                      fontSize: 26,
+                      fontSize:
+                        26,
+
                       fontWeight:
                         "600",
                     }}
                   >
                     {
-                      {
-                        name:
-                          "Nome",
+                      currentFolder
+                        ? currentFolder
+                          .name
+                        : {
+                          name:
+                            "Nome",
 
-                        modified:
-                          "Ultima modifica",
+                          modified:
+                            "Ultima modifica",
 
-                        size:
-                          "Dimensione",
-                      }[
-                      sortBy
-                      ]
+                          size:
+                            "Dimensione",
+                        }[
+                        sortBy
+                        ]
                     }
                   </Text>
 
                   <Ionicons
-                    name="chevron-down"
+                    name=
+                    "chevron-down"
+
                     size={18}
+
                     style={{
-                      marginLeft: 4,
+                      marginLeft:
+                        4,
+                      opacity:
+                        0.8,
                     }}
                   />
+
                 </TouchableOpacity>
 
                 <View
@@ -585,6 +751,7 @@ export default function FilesScreen() {
                     gap: 18,
                   }}
                 >
+
                   <Ionicons
                     name="search"
                     size={26}
@@ -601,7 +768,9 @@ export default function FilesScreen() {
                         ? "list"
                         : "grid"
                     }
+
                     size={26}
+
                     onPress={() =>
                       setGridView(
                         !gridView
@@ -610,15 +779,20 @@ export default function FilesScreen() {
                   />
 
                   <Ionicons
-                    name="options-outline"
+                    name=
+                    "options-outline"
+
                     size={26}
+
                     onPress={() =>
                       setShowFilters(
                         !showFilters
                       )
                     }
                   />
+
                 </View>
+
               </View>
             )
         }
@@ -632,26 +806,62 @@ export default function FilesScreen() {
             setShowSortMenu
           }
 
-          sortBy={sortBy}
+          sortBy={
+            sortBy
+          }
 
           setSortBy={
             setSortBy
           }
 
+          sortDirection={
+            sortDirection
+          }
+
+          setSortDirection={
+            setSortDirection
+          }
+
           options={[
             {
               key: "name",
-              label: "Nome",
-            },
-            {
-              key: "modified",
+
               label:
-                "Ultima modifica",
+                sortBy ===
+                  "name"
+                  &&
+                  sortDirection
+                  === "asc"
+
+                  ? "Nome (A-Z)"
+
+                  : "Nome (Z-A)",
             },
+
             {
-              key: "size",
+              key:
+                "modified",
+
               label:
-                "Dimensione",
+                sortDirection
+                  === "desc"
+
+                  ? "Più recenti"
+
+                  : "Più vecchi",
+            },
+
+            {
+              key:
+                "size",
+
+              label:
+                sortDirection
+                  === "desc"
+
+                  ? "Grande → Piccolo"
+
+                  : "Piccolo → Grande",
             },
           ]}
         />
@@ -676,6 +886,60 @@ export default function FilesScreen() {
             setFilterType
           }
         />
+
+        {
+          folders.filter(
+            folder =>
+              folder.parent_folder_id
+              ===
+              (
+                currentFolder
+                  ?.id
+                ?? null
+              )
+          )
+            .map(
+              folder => (
+
+                <FolderCard
+                  key={
+                    folder.id
+                  }
+
+                  folder={
+                    folder
+                  }
+
+                  gridView={
+                    gridView
+                  }
+
+                  onPress={() => {
+
+                    setFolderHistory(
+                      prev => [
+                        ...prev,
+                        currentFolder,
+                      ]
+                    );
+
+                    setCurrentFolder(
+                      folder
+                    );
+                  }}
+                />
+              )
+            )
+        }
+
+        {
+          console.log(
+            "Rendered order:",
+            sortedFiles.map(
+              file => file.name
+            )
+          )
+        }
 
         <FileList
           data={sortedFiles}
@@ -722,10 +986,42 @@ export default function FilesScreen() {
           !serverOnline
         }
 
-        onPress={
-          serverOnline
-            ? pickDocument
-            : undefined
+        onPress={() =>
+          Alert.alert(
+            "Nuovo elemento",
+
+            "Cosa vuoi creare?",
+
+            [
+              {
+                text:
+                  "Cartella",
+
+                onPress:
+                  () =>
+                    setShowCreateFolder(
+                      true
+                    ),
+              },
+
+              {
+                text:
+                  "Carica file",
+
+                onPress:
+                  () =>
+                    pickDocument(),
+              },
+
+              {
+                text:
+                  "Annulla",
+
+                style:
+                  "cancel",
+              },
+            ]
+          )
         }
       />
       <SelectionMenu
@@ -890,6 +1186,23 @@ ${(
             ]
         }
       />
+
+      <CreateFolderModal
+        visible={
+          showCreateFolder
+        }
+
+        onClose={() =>
+          setShowCreateFolder(
+            false
+          )
+        }
+
+        onCreate={
+          createFolder
+        }
+      />
+
     </SafeAreaView>
   );
 }

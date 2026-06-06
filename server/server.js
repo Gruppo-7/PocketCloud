@@ -14,6 +14,8 @@ const filesRoutes = require( "./routes/files" );
 
 const sharedRoutes = require(  "./routes/shared" );
 
+const foldersRoutes = require( "./routes/folders" );
+
 app.use(cors());
 
 app.use(express.json());
@@ -23,6 +25,8 @@ app.use("/auth", authRoutes);
 app.use( "/files", filesRoutes );
 
 app.use( "/shared", sharedRoutes );
+
+app.use( "/folders", foldersRoutes );
 
 app.get(
     "/health",

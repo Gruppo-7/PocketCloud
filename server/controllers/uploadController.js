@@ -5,9 +5,9 @@ const crypto = require("crypto");
 const { pool } = require("../database/db");
 
 async function uploadFile(
-        req,
-        res
-    ) {
+    req,
+    res
+) {
 
     try {
 
@@ -21,9 +21,7 @@ async function uploadFile(
                 });
         }
 
-        const {
-            owner_id
-        } = req.body;
+        const { owner_id, folder_id } = req.body;
 
         if (!owner_id) {
 
@@ -54,18 +52,19 @@ async function uploadFile(
                 )
                 VALUES
                 (
-                    $1,
-                    NULL,
-                    $2,
-                    $3,
-                    $4,
-                    $5
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6
                 )
                 RETURNING *
                 `,
                 [
-
                     owner_id,
+
+                    folder_id || null,
 
                     req.file
                         .originalname,

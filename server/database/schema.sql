@@ -62,6 +62,10 @@ CREATE TABLE IF NOT EXISTS folders (
         ON DELETE CASCADE
 );
 
+-- =========================
+-- FILES
+-- =========================
+
 CREATE TABLE IF NOT EXISTS files (
 
 ```
