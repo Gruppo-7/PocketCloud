@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- =========================
--- FILES
+-- FOLDERS
 -- =========================
 
-CREATE TABLE IF NOT EXISTS files (
+CREATE TABLE IF NOT EXISTS folders (
 
     id SERIAL PRIMARY KEY,
 
@@ -39,23 +39,79 @@ CREATE TABLE IF NOT EXISTS files (
     name VARCHAR(255)
         NOT NULL,
 
-    path TEXT
-        NOT NULL,
-
-    size BIGINT
-        DEFAULT 0,
+    parent_folder_id INTEGER,
 
     created_at TIMESTAMP
         DEFAULT CURRENT_TIMESTAMP,
 
-    modified_at TIMESTAMP
+    updated_at TIMESTAMP
         DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_owner
-        FOREIGN KEY (owner_id)
+    CONSTRAINT fk_folder_owner
+        FOREIGN KEY (
+            owner_id
+        )
         REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_parent_folder
+        FOREIGN KEY (
+            parent_folder_id
+        )
+        REFERENCES folders(id)
         ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS files (
+
+```
+id SERIAL PRIMARY KEY,
+
+owner_id INTEGER
+    NOT NULL,
+
+folder_id INTEGER,
+
+name VARCHAR(255)
+    NOT NULL,
+
+storage_key TEXT
+    NOT NULL,
+
+size BIGINT
+    DEFAULT 0,
+
+mime_type TEXT,
+
+sha256_fingerprint TEXT,
+
+encryption_iv TEXT,
+
+algorithm TEXT,
+
+created_at TIMESTAMP
+    DEFAULT CURRENT_TIMESTAMP,
+
+updated_at TIMESTAMP
+    DEFAULT CURRENT_TIMESTAMP,
+
+CONSTRAINT fk_owner
+    FOREIGN KEY (
+        owner_id
+    )
+    REFERENCES users(id)
+    ON DELETE CASCADE,
+
+CONSTRAINT fk_folder
+    FOREIGN KEY (
+        folder_id
+    )
+    REFERENCES folders(id)
+    ON DELETE CASCADE
+```
+
+);
+
 
 -- =========================
 -- SHARES
