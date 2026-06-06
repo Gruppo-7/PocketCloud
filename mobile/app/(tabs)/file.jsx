@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Alert, FlatList, Text, View, TouchableOpacity, TextInput, ScrollView, Linking, Platform } from "react-native";
+import { Alert, Text, View, TouchableOpacity, Linking, Platform } from "react-native";
 import FileList from "../../components/FileList";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchBar from "../../components/SearchBar";
@@ -17,6 +17,7 @@ import * as IntentLauncher from "expo-intent-launcher";
 import { getFileType } from "../../utils/fileTypes";
 import { useServerStatus } from "../../context/ServerContext";
 import SelectionHeader from "../../components/SelectionHeader";
+import SelectionMenu from "../../components/SelectionMenu";
 
 export default function FilesScreen() {
 
@@ -40,6 +41,8 @@ export default function FilesScreen() {
   const [selectedFiles, setSelectedFiles] = useState([]);
 
   const [selectionMode, setSelectionMode] = useState(false);
+
+  const [showSelectionMenu, setShowSelectionMenu] = useState(false);
 
   const { serverOnline } = useServerStatus();
 
@@ -149,64 +152,6 @@ export default function FilesScreen() {
       Alert.alert(
         "Errore",
         "Upload fallito"
-      );
-    }
-  }
-
-  async function
-    deleteFile(
-      fileId
-    ) {
-
-    try {
-
-      const baseUrl =
-        await getBaseUrl();
-
-      const response =
-        await fetch(
-          `${baseUrl}/files/${fileId}`,
-          {
-
-            method:
-              "DELETE",
-          }
-        );
-
-      const data =
-        await response.json();
-
-      console.log(
-        "Delete response:",
-        data
-      );
-
-      if (
-        !response.ok
-      ) {
-
-        throw new Error(
-          data.error
-        );
-      }
-
-      await reloadFiles();
-
-      Alert.alert(
-        "Eliminato",
-        "File rimosso"
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Delete error:",
-        error
-      );
-
-      Alert.alert(
-        "Errore",
-        "Impossibile eliminare file"
       );
     }
   }
@@ -560,6 +505,12 @@ export default function FilesScreen() {
                     false
                   );
                 }}
+
+                onActions={() =>
+                  setShowSelectionMenu(
+                    true
+                  )
+                }
               />
 
             ) : (
@@ -746,7 +697,7 @@ export default function FilesScreen() {
           onShareFile={
             shareFile
           }
-          
+
           selectedFiles={
             selectedFiles
           }
@@ -775,6 +726,168 @@ export default function FilesScreen() {
           serverOnline
             ? pickDocument
             : undefined
+        }
+      />
+      <SelectionMenu
+        visible={
+          showSelectionMenu
+        }
+
+        onClose={() =>
+          setShowSelectionMenu(
+            false
+          )
+        }
+
+        options={
+          selectedFiles.length === 1
+
+            ? [
+
+              {
+                key:
+                  "open",
+
+                label:
+                  "Apri",
+
+                onPress:
+                  async () => {
+
+                    await openFile(
+                      selectedFiles[0]
+                    );
+
+                    setShowSelectionMenu(
+                      false
+                    );
+                  },
+              },
+
+              {
+                key:
+                  "share",
+
+                label:
+                  "Apri in...",
+
+                onPress:
+                  async () => {
+
+                    await shareFile(
+                      selectedFiles[0]
+                    );
+
+                    setShowSelectionMenu(
+                      false
+                    );
+                  },
+              },
+
+              {
+                key:
+                  "details",
+
+                label:
+                  "Dettagli",
+
+                onPress:
+                  () => {
+
+                    const file =
+                      selectedFiles[0];
+
+                    Alert.alert(
+                      "Dettagli file",
+
+                      `Nome:
+${file.name}
+
+Dimensione:
+${(
+                        file.size /
+                        1024
+                      ).toFixed(2)} KB`
+                    );
+
+                    setShowSelectionMenu(
+                      false
+                    );
+                  },
+              },
+
+              {
+                key:
+                  "delete",
+
+                label:
+                  "Elimina",
+
+                danger:
+                  true,
+
+                onPress:
+                  async () => {
+
+                    await deleteFile(
+                      selectedFiles[0]
+                        .id
+                    );
+
+                    setSelectedFiles(
+                      []
+                    );
+
+                    setSelectionMode(
+                      false
+                    );
+
+                    setShowSelectionMenu(
+                      false
+                    );
+                  },
+              },
+            ]
+
+            : [
+
+              {
+                key:
+                  "delete",
+
+                label:
+                  "Elimina selezionati",
+
+                danger:
+                  true,
+
+                onPress:
+                  async () => {
+
+                    for (
+                      const file
+                      of selectedFiles
+                    ) {
+
+                      await deleteFile(
+                        file.id
+                      );
+                    }
+
+                    setSelectedFiles(
+                      []
+                    );
+
+                    setSelectionMode(
+                      false
+                    );
+
+                    setShowSelectionMenu(
+                      false
+                    );
+                  },
+              },
+            ]
         }
       />
     </SafeAreaView>

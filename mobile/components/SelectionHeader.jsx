@@ -3,12 +3,14 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function
-SelectionHeader({
+    SelectionHeader({
 
-    selectedCount,
+        selectedCount,
 
-    onClose,
-}) {
+        onClose,
+
+        onActions,
+    }) {
 
     return (
         <View
@@ -73,7 +75,11 @@ SelectionHeader({
 
             </View>
 
-            <TouchableOpacity>
+            <TouchableOpacity
+                onPress={
+                    onActions
+                }
+            >
 
                 <Ionicons
                     name="ellipsis-vertical"
