@@ -1,12 +1,6 @@
-import {
-    View,
-    Text,
-    TouchableOpacity,
-} from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 
-import {
-    Ionicons
-} from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function
     FolderCard({
@@ -16,14 +10,95 @@ export default function
         gridView,
 
         onPress,
+
+        selectionMode,
+
+        selectedFolders,
+
+        setSelectedFolders,
+
+        setSelectionMode
     }) {
+
+    const isSelected =
+        selectedFolders
+            ?.some(
+                f =>
+                    f.id ===
+                    folder.id
+            );
+
+    function
+        toggleFolderSelection() {
+
+        if (
+            !selectionMode
+        ) {
+
+            setSelectionMode(
+                true
+            );
+
+            setSelectedFolders(
+                [folder]
+            );
+
+            return;
+        }
+
+        const alreadySelected =
+            selectedFolders
+                .some(
+                    f =>
+                        f.id ===
+                        folder.id
+                );
+
+        if (
+            alreadySelected
+        ) {
+
+            setSelectedFolders(
+                prev =>
+                    prev.filter(
+                        f =>
+                            f.id !==
+                            folder.id
+                    )
+            );
+
+        } else {
+
+            setSelectedFolders(
+                prev => [
+                    ...prev,
+                    folder,
+                ]
+            );
+        }
+    }
 
     return (
 
         <TouchableOpacity
-            onPress={
-                onPress
+
+            onLongPress={
+                toggleFolderSelection
             }
+
+            onPress={() => {
+
+                if (
+                    selectionMode
+                ) {
+
+                    toggleFolderSelection();
+
+                    return;
+                }
+
+                onPress();
+            }}
 
             style={{
                 flex:
@@ -40,7 +115,9 @@ export default function
                     "center",
 
                 backgroundColor:
-                    "#fff",
+                    isSelected
+                        ? "#E8F1FF"
+                        : "#fff",
 
                 borderRadius:
                     16,
@@ -55,7 +132,9 @@ export default function
                     1,
 
                 borderColor:
-                    "#ECECEC",
+                    isSelected
+                        ? "#007AFF"
+                        : "#ECECEC",
             }}
         >
 

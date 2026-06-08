@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import SearchBar from "../../components/SearchBar";
 import FilterChips from "../../components/FilterChips";
 import SortMenu from "../../components/SortMenu";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import FAB from "../../components/FAB";
 import useFiles from "../../hooks/useFiles";
 import * as DocumentPicker from "expo-document-picker";
@@ -21,6 +21,7 @@ import SelectionMenu from "../../components/SelectionMenu";
 import useFolders from "../../hooks/useFolders";
 import FolderCard from "../../components/FolderCard";
 import CreateFolderModal from "../../components/CreateFolderModal";
+import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 
 export default function FilesScreen() {
 
@@ -37,8 +38,10 @@ export default function FilesScreen() {
   const [sortBy, setSortBy] = useState("name");
   const [sortDirection, setSortDirection] = useState("asc");
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [selectedFolders, setSelectedFolders] = useState([]);
   const [selectionMode, setSelectionMode] = useState(false);
   const [showSelectionMenu, setShowSelectionMenu] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const { serverOnline } = useServerStatus();
   const { files, setFiles, reloadFiles } = useFiles("files");
   const { folders, setFolders } = useFolders();
@@ -287,6 +290,67 @@ export default function FilesScreen() {
       Alert.alert(
         "Errore",
         "Impossibile eliminare file"
+      );
+    }
+  }
+
+  async function
+    deleteFolder(
+      folderId
+    ) {
+
+    try {
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/folders/${folderId}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      console.log(
+        "Delete folder:",
+        data
+      );
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
+        );
+      }
+
+      setFolders(
+        prev =>
+          prev.filter(
+            folder =>
+              folder.id !==
+              folderId
+          )
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Delete folder error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile eliminare cartella"
       );
     }
   }
@@ -579,6 +643,83 @@ export default function FilesScreen() {
         }
       );
 
+  useEffect(() => {
+
+    const totalSelected =
+      selectedFiles.length
+      +
+      selectedFolders.length;
+
+    if (
+      selectionMode
+      &&
+      totalSelected
+      === 0
+    ) {
+
+      setSelectionMode(
+        false
+      );
+    }
+
+  }, [
+    selectedFiles,
+    selectedFolders,
+    selectionMode
+  ]);
+
+  async function
+    confirmDelete() {
+
+    try {
+
+      for (
+        const file
+        of selectedFiles
+      ) {
+
+        await deleteFile(
+          file.id
+        );
+      }
+
+      for (
+        const folder
+        of selectedFolders
+      ) {
+
+        await deleteFolder(
+          folder.id
+        );
+      }
+
+      setSelectedFiles(
+        []
+      );
+
+      setSelectedFolders(
+        []
+      );
+
+      setSelectionMode(
+        false
+      );
+
+      setShowDeleteModal(
+        false
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Confirm delete error:",
+        error
+      );
+    }
+  }
+
   return (
     <SafeAreaView
       style={{
@@ -604,11 +745,17 @@ export default function FilesScreen() {
               <SelectionHeader
                 selectedCount={
                   selectedFiles.length
+                  +
+                  selectedFolders.length
                 }
 
                 onClose={() => {
 
                   setSelectedFiles(
+                    []
+                  );
+
+                  setSelectedFolders(
                     []
                   );
 
@@ -902,6 +1049,23 @@ export default function FilesScreen() {
               folder => (
 
                 <FolderCard
+
+                  selectionMode={
+                    selectionMode
+                  }
+
+                  selectedFolders={
+                    selectedFolders
+                  }
+
+                  setSelectedFolders={
+                    setSelectedFolders
+                  }
+
+                  setSelectionMode={
+                    setSelectionMode
+                  }
+
                   key={
                     folder.id
                   }
@@ -932,19 +1096,12 @@ export default function FilesScreen() {
             )
         }
 
-        {
-          console.log(
-            "Rendered order:",
-            sortedFiles.map(
-              file => file.name
-            )
-          )
-        }
-
         <FileList
           data={sortedFiles}
           gridView={gridView}
           disabled={!serverOnline}
+          showDeleteModal={showDeleteModal}
+          setShowDeleteModal={setShowDeleteModal}
 
           renderSubtitle={(item) =>
             "2 MB • ieri"
@@ -1036,81 +1193,93 @@ export default function FilesScreen() {
         }
 
         options={
-          selectedFiles.length === 1
+          selectedFiles.length
+            +
+            selectedFolders.length
+            === 1
 
             ? [
 
-              {
-                key:
-                  "open",
+              ...(selectedFiles.length
+                === 1
 
-                label:
-                  "Apri",
+                ? [
 
-                onPress:
-                  async () => {
+                  {
+                    key:
+                      "open",
 
-                    await openFile(
-                      selectedFiles[0]
-                    );
+                    label:
+                      "Apri",
 
-                    setShowSelectionMenu(
-                      false
-                    );
+                    onPress:
+                      async () => {
+
+                        await openFile(
+                          selectedFiles[0]
+                        );
+
+                        setShowSelectionMenu(
+                          false
+                        );
+                      },
                   },
-              },
 
-              {
-                key:
-                  "share",
+                  {
+                    key:
+                      "share",
 
-                label:
-                  "Apri in...",
+                    label:
+                      "Apri in...",
 
-                onPress:
-                  async () => {
+                    onPress:
+                      async () => {
 
-                    await shareFile(
-                      selectedFiles[0]
-                    );
+                        await shareFile(
+                          selectedFiles[0]
+                        );
 
-                    setShowSelectionMenu(
-                      false
-                    );
+                        setShowSelectionMenu(
+                          false
+                        );
+                      },
                   },
-              },
 
-              {
-                key:
-                  "details",
+                  {
+                    key:
+                      "details",
 
-                label:
-                  "Dettagli",
+                    label:
+                      "Dettagli",
 
-                onPress:
-                  () => {
+                    onPress:
+                      () => {
 
-                    const file =
-                      selectedFiles[0];
+                        const file =
+                          selectedFiles[0];
 
-                    Alert.alert(
-                      "Dettagli file",
+                        Alert.alert(
+                          "Dettagli file",
 
-                      `Nome:
+                          `Nome:
 ${file.name}
 
 Dimensione:
 ${(
-                        file.size /
-                        1024
-                      ).toFixed(2)} KB`
-                    );
+                            file.size /
+                            1024
+                          ).toFixed(2)} KB`
+                        );
 
-                    setShowSelectionMenu(
-                      false
-                    );
+                        setShowSelectionMenu(
+                          false
+                        );
+                      },
                   },
-              },
+
+                ]
+
+                : []),
 
               {
                 key:
@@ -1123,23 +1292,14 @@ ${(
                   true,
 
                 onPress:
-                  async () => {
-
-                    await deleteFile(
-                      selectedFiles[0]
-                        .id
-                    );
-
-                    setSelectedFiles(
-                      []
-                    );
-
-                    setSelectionMode(
-                      false
-                    );
+                  () => {
 
                     setShowSelectionMenu(
                       false
+                    );
+
+                    setShowDeleteModal(
+                      true
                     );
                   },
               },
@@ -1158,32 +1318,73 @@ ${(
                   true,
 
                 onPress:
-                  async () => {
-
-                    for (
-                      const file
-                      of selectedFiles
-                    ) {
-
-                      await deleteFile(
-                        file.id
-                      );
-                    }
-
-                    setSelectedFiles(
-                      []
-                    );
-
-                    setSelectionMode(
-                      false
-                    );
+                  () => {
 
                     setShowSelectionMenu(
                       false
                     );
+
+                    setShowDeleteModal(
+                      true
+                    );
                   },
               },
             ]
+        }
+      />
+
+      <ConfirmDeleteModal
+        visible={
+          showDeleteModal
+        }
+
+        title={
+          selectedFiles.length
+            +
+            selectedFolders.length
+            === 1
+
+            ? selectedFolders
+              .length
+              === 1
+
+              ? "Eliminare cartella?"
+
+              : "Eliminare file?"
+
+            : "Eliminare elementi?"
+        }
+
+        message={
+          selectedFiles.length
+            +
+            selectedFolders.length
+            === 1
+
+            ? selectedFolders
+              .length
+              === 1
+
+              ? "La cartella selezionata e tutto il suo contenuto verranno eliminati definitivamente."
+
+              : "Il file selezionato verrà eliminato definitivamente."
+
+            : selectedFolders
+              .length > 0
+
+              ? "Le cartelle selezionate e tutto il loro contenuto verranno eliminati definitivamente."
+
+              : "I file selezionati verranno eliminati definitivamente."
+        }
+
+        onCancel={() =>
+          setShowDeleteModal(
+            false
+          )
+        }
+
+        onConfirm={
+          confirmDelete
         }
       />
 

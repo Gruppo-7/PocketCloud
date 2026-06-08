@@ -14,14 +14,34 @@ export default function FileList({
     onDeleteFile,
     onOpenFile,
     onShareFile,
+    showDeleteModal,
+    setShowDeleteModal,
 }) {
     const [selectedFile, setSelectedFile] = useState(null);
 
     function handleDelete() {
-        if (selectedFile) {
-            onDeleteFile(selectedFile.id);
-            setSelectedFile(null);
+
+        if (
+            !selectedFile
+        ) {
+            return;
         }
+
+        setSelectedFiles(
+            [selectedFile]
+        );
+
+        setSelectionMode(
+            true
+        );
+
+        setSelectedFile(
+            null
+        );
+
+        setShowDeleteModal(
+            true
+        );
     }
 
     function handleDetails() {
@@ -91,16 +111,6 @@ ${new Date(
         setSelectedFiles(
             updatedFiles
         );
-
-        if (
-            updatedFiles.length ===
-            0
-        ) {
-
-            setSelectionMode(
-                false
-            );
-        }
     }
 
     function renderItem({ item }) {
