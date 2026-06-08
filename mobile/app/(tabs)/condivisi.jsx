@@ -4,13 +4,15 @@ import { Alert, Text, View, TouchableOpacity } from "react-native";
 import FilterChips from "../../components/FilterChips";
 import { SafeAreaView } from "react-native-safe-area-context";
 import FileList from "../../components/FileList";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SortMenu from "../../components/SortMenu";
 import FAB from "../../components/FAB";
 import useFiles from "../../hooks/useFiles";
 import { getFileType } from "../../utils/fileTypes";
 import { useServerStatus } from "../../context/ServerContext";
 import SelectionHeader from "../../components/SelectionHeader";
+import SelectionMenu from "../../components/SelectionMenu";
+import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 
 export default function SharedScreen() {
 
@@ -44,17 +46,17 @@ export default function SharedScreen() {
   const [sortBy, setSortBy] =
     useState("modified");
 
-  const [
-    selectedFiles,
-    setSelectedFiles
-  ] =
-    useState([]);
+  const [sortDirection, setSortDirection] = useState("desc");
 
-  const [
-    selectionMode,
-    setSelectionMode
-  ] =
-    useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+
+  const [selectedFolders, setSelectedFolders] = useState([]);
+
+  const [selectionMode, setSelectionMode] = useState(false);
+
+  const [showSelectionMenu, setShowSelectionMenu] = useState(false);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const { files: sharedFiles, setFiles: setSharedFiles } = useFiles("shared");
 
@@ -104,43 +106,111 @@ export default function SharedScreen() {
     );
 
   const sortedFiles =
-    [...filteredFiles].sort(
-      (a, b) => {
+    [...filteredFiles]
+      .sort(
+        (a, b) => {
 
-        switch (
-        sortBy
-        ) {
+          let result =
+            0;
 
-          case "name":
-            return a.name
-              .toLowerCase()
-              .localeCompare(
-                b.name
+          switch (
+          sortBy
+          ) {
+
+            case "name":
+
+              result =
+                a.name
                   .toLowerCase()
-              );
+                  .localeCompare(
+                    b.name
+                      .toLowerCase()
+                  );
 
-          case "size":
-            return (
-              b.size -
-              a.size
-            );
+              break;
 
-          case "modified":
-            return (
-              new Date(
-                b.updated_at
-              ).getTime()
-              -
-              new Date(
-                a.updated_at
-              ).getTime()
-            );
+            case "size":
 
-          default:
-            return 0;
+              result =
+                a.size -
+                b.size;
+
+              break;
+
+            case "modified":
+
+              result =
+                new Date(
+                  a.updated_at
+                ).getTime()
+                -
+                new Date(
+                  b.updated_at
+                ).getTime();
+
+              break;
+
+            default:
+              result =
+                0;
+          }
+
+          return (
+            sortDirection
+              === "asc"
+
+              ? result
+
+              : -result
+          );
         }
-      }
+      );
+
+  useEffect(() => {
+
+    const totalSelected =
+      selectedFiles.length
+      +
+      selectedFolders.length;
+
+    if (
+      selectionMode
+      &&
+      totalSelected
+      === 0
+    ) {
+
+      setSelectionMode(
+        false
+      );
+    }
+
+  }, [
+    selectedFiles,
+    selectedFolders,
+    selectionMode
+  ]);
+
+  function
+    confirmDelete() {
+
+    deleteFile(
+      selectedFiles[0]
+        ?.id
     );
+
+    setSelectedFiles(
+      []
+    );
+
+    setSelectionMode(
+      false
+    );
+
+    setShowDeleteModal(
+      false
+    );
+  }
 
   return (
     <SafeAreaView
@@ -167,6 +237,8 @@ export default function SharedScreen() {
               <SelectionHeader
                 selectedCount={
                   selectedFiles.length
+                  +
+                  selectedFolders.length
                 }
 
                 onClose={() => {
@@ -178,7 +250,17 @@ export default function SharedScreen() {
                   setSelectionMode(
                     false
                   );
+
+                  setSelectedFolders(
+                    []
+                  );
                 }}
+
+                onActions={() =>
+                  setShowSelectionMenu(
+                    true
+                  )
+                }
               />
 
             ) : (
@@ -296,141 +378,308 @@ export default function SharedScreen() {
             )
         }
 
-      {/* SEARCH BAR */}
-      {showSearch && (
-        <SearchBar
-          value={searchText}
-          onChangeText={
-            setSearchText
+        {/* SEARCH BAR */}
+        {showSearch && (
+          <SearchBar
+            value={searchText}
+            onChangeText={
+              setSearchText
+            }
+            placeholder="Cerca file condivisi"
+          />
+        )}
+
+        {/* MENU ORDINAMENTO */}
+        <SortMenu
+          showSortMenu={
+            showSortMenu
           }
-          placeholder="Cerca file condivisi"
+          setShowSortMenu={
+            setShowSortMenu
+          }
+          sortDirection={
+            sortDirection
+          }
+
+          setSortDirection={
+            setSortDirection
+          }
+
+          sortBy={sortBy}
+
+          setSortBy={
+            setSortBy
+          }
+
+          options={[
+            {
+              key: "name",
+
+              label:
+                sortBy ===
+                  "name"
+                  &&
+                  sortDirection
+                  === "asc"
+
+                  ? "Nome (A-Z)"
+
+                  : "Nome (Z-A)",
+            },
+
+            {
+              key:
+                "modified",
+
+              label:
+                sortDirection
+                  === "desc"
+
+                  ? "Più recenti"
+
+                  : "Più vecchi",
+            },
+
+            {
+              key:
+                "size",
+
+              label:
+                sortDirection
+                  === "desc"
+
+                  ? "Grande → Piccolo"
+
+                  : "Piccolo → Grande",
+            },
+          ]}
         />
-      )}
 
-      {/* MENU ORDINAMENTO */}
-      <SortMenu
-        showSortMenu={
-          showSortMenu
-        }
+        {/* FILTRI */}
+        <FilterChips
+          visible={showFilters}
+          gridView={gridView}
+          selectedFilter={filterType}
+          setSelectedFilter={
+            setFilterType
+          }
+        />
 
-        setShowSortMenu={
-          setShowSortMenu
-        }
+        {/* LISTA */}
+        <FileList
+          disabled={
+            !serverOnline
+          }
+          data={sortedFiles}
+          gridView={gridView}
+          selectedFiles={
+            selectedFiles
+          }
 
-        sortBy={sortBy}
+          setSelectedFiles={
+            setSelectedFiles
+          }
 
-        setSortBy={
-          setSortBy
-        }
+          selectionMode={
+            selectionMode
+          }
 
-        options={[
-          {
-            key: "name",
-            label: "Nome",
-          },
-          {
-            key: "modified",
-            label:
-              "Ultima modifica",
-          },
-          {
-            key: "size",
-            label:
-              "Dimensione",
-          },
-        ]}
-      />
+          setSelectionMode={
+            setSelectionMode
+          }
+          renderSubtitle={(item) =>
+            `${item.owner} • ${item.permission}`
+          }
+          onDeleteFile={deleteFile}
+        />
+      </View>
 
-      {/* FILTRI */}
-      <FilterChips
-        visible={showFilters}
-        gridView={gridView}
-        selectedFilter={filterType}
-        setSelectedFilter={
-          setFilterType
-        }
-      />
-
-      {/* LISTA */}
-      <FileList
+      {/* PULSANTE AGGIUNGI */}
+      <FAB
         disabled={
           !serverOnline
         }
-        data={sortedFiles}
-        gridView={gridView}
-        selectedFiles={
-          selectedFiles
-        }
 
-        setSelectedFiles={
-          setSelectedFiles
-        }
+        icon="person-add"
 
-        selectionMode={
-          selectionMode
-        }
+        onPress={
+          serverOnline
+            ? () =>
+              Alert.alert(
+                "Condividi file",
 
-        setSelectionMode={
-          setSelectionMode
+                "Scegli origine file",
+
+                [
+                  {
+                    text:
+                      "Dal cloud",
+
+                    onPress:
+                      () =>
+                        Alert.alert(
+                          "In arrivo"
+                        ),
+                  },
+
+                  {
+                    text:
+                      "Dal dispositivo",
+
+                    onPress:
+                      () =>
+                        Alert.alert(
+                          "In arrivo"
+                        ),
+                  },
+
+                  {
+                    text:
+                      "Annulla",
+
+                    style:
+                      "cancel",
+                  },
+                ]
+              )
+            : undefined
         }
-        renderSubtitle={(item) =>
-          `${item.owner} • ${item.permission}`
-        }
-        onDeleteFile={deleteFile}
       />
-    </View>
 
-      {/* PULSANTE AGGIUNGI */ }
-  <FAB
-    disabled={
-      !serverOnline
-    }
+      <SelectionMenu
+        visible={
+          showSelectionMenu
+        }
 
-    icon="person-add"
+        onClose={() =>
+          setShowSelectionMenu(
+            false
+          )
+        }
 
-    onPress={
-      serverOnline
-        ? () =>
-          Alert.alert(
-            "Condividi file",
+        options={
+          selectedFiles.length
+            === 1
 
-            "Scegli origine file",
+            ? [
 
-            [
               {
-                text:
-                  "Dal cloud",
+                key:
+                  "details",
+
+                label:
+                  "Dettagli",
 
                 onPress:
-                  () =>
+                  () => {
+
+                    const file =
+                      selectedFiles[0];
+
                     Alert.alert(
-                      "In arrivo"
-                    ),
+                      "Dettagli file",
+
+                      `Nome:
+${file.name}
+
+Dimensione:
+${(
+                        file.size /
+                        1024
+                      ).toFixed(2)} KB`
+                    );
+
+                    setShowSelectionMenu(
+                      false
+                    );
+                  },
               },
 
               {
-                text:
-                  "Dal dispositivo",
+                key:
+                  "delete",
+
+                label:
+                  "Elimina",
+
+                danger:
+                  true,
 
                 onPress:
-                  () =>
-                    Alert.alert(
-                      "In arrivo"
-                    ),
-              },
+                  () => {
 
-              {
-                text:
-                  "Annulla",
+                    setShowSelectionMenu(
+                      false
+                    );
 
-                style:
-                  "cancel",
+                    setShowDeleteModal(
+                      true
+                    );
+                  },
               },
             ]
+
+            : [
+
+              {
+                key:
+                  "delete",
+
+                label:
+                  "Elimina selezionati",
+
+                danger:
+                  true,
+
+                onPress:
+                  () => {
+
+                    setShowSelectionMenu(
+                      false
+                    );
+
+                    setShowDeleteModal(
+                      true
+                    );
+                  },
+              },
+            ]
+        }
+      />
+
+      <ConfirmDeleteModal
+        visible={
+          showDeleteModal
+        }
+
+        title={
+          selectedFiles.length
+            === 1
+
+            ? "Rimuovere file?"
+
+            : "Rimuovere elementi?"
+        }
+
+        message={
+          selectedFiles.length
+            === 1
+
+            ? "Il file condiviso verrà rimosso."
+
+            : "I file condivisi selezionati verranno rimossi."
+        }
+
+        onCancel={() =>
+          setShowDeleteModal(
+            false
           )
-        : undefined
-    }
-  />
+        }
+
+        onConfirm={
+          confirmDelete
+        }
+      />
 
     </SafeAreaView >
   );
