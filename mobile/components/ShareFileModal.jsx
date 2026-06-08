@@ -1,4 +1,4 @@
-import { Modal, View, Text, TextInput, TouchableOpacity, Pressable } from "react-native";
+import { Modal, View, Text, TextInput, TouchableOpacity, Pressable, Alert } from "react-native";
 import { useState, useEffect } from "react";
 import { getBaseUrl } from "../utils/api";
 
@@ -190,6 +190,42 @@ export default function
                 error
             );
         }
+    }
+
+    function
+        confirmRevoke(
+            share
+        ) {
+
+        Alert.alert(
+            "Revoca accesso",
+
+            `Vuoi davvero revocare l'accesso a ${share.username}?`,
+
+            [
+                {
+                    text:
+                        "Annulla",
+
+                    style:
+                        "cancel",
+                },
+
+                {
+                    text:
+                        "Rimuovi",
+
+                    style:
+                        "destructive",
+
+                    onPress:
+                        () =>
+                            handleRevoke(
+                                share.share_id
+                            ),
+                },
+            ]
+        );
     }
 
     async function
@@ -555,8 +591,8 @@ export default function
 
                                                         <TouchableOpacity
                                                             onPress={() =>
-                                                                handleRevoke(
-                                                                    share.share_id
+                                                                confirmRevoke(
+                                                                    share
                                                                 )
                                                             }
                                                         >
