@@ -281,7 +281,215 @@ async function
     }
 }
 
+async function
+    getFileShares(
+        req,
+        res
+    ) {
+
+    try {
+
+        const {
+            fileId
+        } = req.params;
+
+        const result =
+            await pool.query(
+                `
+                SELECT
+
+                    s.id
+                        AS share_id,
+
+                    u.username,
+
+                    s.permission
+
+                FROM shares s
+
+                JOIN users u
+                    ON u.id =
+                    s.shared_with_user_id
+
+                WHERE
+                    s.file_id
+                    = $1
+
+                ORDER BY
+                    u.username ASC
+                `,
+                [fileId]
+            );
+
+        return res
+            .status(200)
+            .json(
+                result.rows
+            );
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+            error
+        );
+
+        return res
+            .status(500)
+            .json({
+                error:
+                    "Server error"
+            });
+    }
+}
+
+async function
+    revokeShare(
+        req,
+        res
+    ) {
+
+    try {
+
+        const {
+            shareId
+        } = req.params;
+
+        const result =
+            await pool.query(
+                `
+                DELETE
+                FROM shares
+                WHERE id = $1
+                RETURNING *
+                `,
+                [shareId]
+            );
+
+        if (
+            result.rows
+                .length === 0
+        ) {
+
+            return res
+                .status(404)
+                .json({
+                    error:
+                        "Condivisione non trovata"
+                });
+        }
+
+        return res
+            .status(200)
+            .json({
+                message:
+                    "Accesso revocato"
+            });
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+            error
+        );
+
+        return res
+            .status(500)
+            .json({
+                error:
+                    "Server error"
+            });
+    }
+}
+
+async function
+    updateSharePermission(
+        req,
+        res
+    ) {
+
+    try {
+
+        const {
+            shareId
+        } = req.params;
+
+        const {
+            permission
+        } = req.body;
+
+        if (
+            permission
+            !== "read"
+            &&
+            permission
+            !== "write"
+        ) {
+
+            return res
+                .status(400)
+                .json({
+                    error:
+                        "Permesso non valido"
+                });
+        }
+
+        const result =
+            await pool.query(
+                `
+                UPDATE shares
+                SET permission = $1
+                WHERE id = $2
+                RETURNING *
+                `,
+                [
+                    permission,
+                    shareId
+                ]
+            );
+
+        if (
+            result.rows
+                .length === 0
+        ) {
+
+            return res
+                .status(404)
+                .json({
+                    error:
+                        "Condivisione non trovata"
+                });
+        }
+
+        return res
+            .status(200)
+            .json(
+                result.rows[0]
+            );
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+            error
+        );
+
+        return res
+            .status(500)
+            .json({
+                error:
+                    "Server error"
+            });
+    }
+}
+
 module.exports = {
     getSharedFiles,
-    shareFile
+    shareFile,
+    getFileShares,
+    revokeShare,
+    updateSharePermission
 };

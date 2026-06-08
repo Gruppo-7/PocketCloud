@@ -1,5 +1,6 @@
 import { Modal, View, Text, TextInput, TouchableOpacity, Pressable } from "react-native";
 import { useState, useEffect } from "react";
+import { getBaseUrl } from "../utils/api";
 
 export default function
     ShareFileModal({
@@ -19,12 +20,20 @@ export default function
 
     const [loading, setLoading] = useState(false);
 
+    const [existingShares, setExistingShares] = useState([]);
+
+    const [loadingShares, setLoadingShares] = useState(false);
+
     useEffect(
         () => {
 
             if (
-                !visible
+                visible
             ) {
+
+                loadShares();
+
+            } else {
 
                 setUsername(
                     ""
@@ -33,11 +42,214 @@ export default function
                 setPermission(
                     "read"
                 );
+
+                setExistingShares(
+                    []
+                );
             }
 
         },
-        [visible]
+        [
+            visible,
+            file
+        ]
     );
+
+    async function
+        loadShares() {
+
+        if (
+            !file?.id
+        ) {
+            return;
+        }
+
+        try {
+
+            setLoadingShares(
+                true
+            );
+
+            const baseUrl =
+                await getBaseUrl();
+
+            const response =
+                await fetch(
+                    `${baseUrl}/shared/file/${file.id}`
+                );
+
+            const data =
+                await response
+                    .json();
+
+            setExistingShares(
+                Array.isArray(
+                    data
+                )
+                    ? data
+                    : []
+            );
+
+        } catch (
+        error
+        ) {
+
+            console.error(
+                "Load shares error:",
+                error
+            );
+
+        } finally {
+
+            setLoadingShares(
+                false
+            );
+        }
+    }
+
+    async function
+        handleTogglePermission(
+            share
+        ) {
+
+        try {
+
+            const newPermission =
+                share.permission
+                    === "read"
+                    ? "write"
+                    : "read";
+
+            const baseUrl =
+                await getBaseUrl();
+
+            const response =
+                await fetch(
+                    `${baseUrl}/shared/${share.share_id}`,
+                    {
+                        method:
+                            "PATCH",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify(
+                                {
+                                    permission:
+                                        newPermission,
+                                }
+                            ),
+                    }
+                );
+
+            const data =
+                await response
+                    .json();
+
+            if (
+                !response.ok
+            ) {
+
+                console.error(
+                    data.error
+                );
+
+                return;
+            }
+
+            setExistingShares(
+                (
+                    prev
+                ) =>
+                    prev.map(
+                        (
+                            item
+                        ) =>
+                            item.share_id
+                                ===
+                                share.share_id
+                                ? {
+                                    ...item,
+
+                                    permission:
+                                        newPermission,
+                                }
+                                : item
+                    )
+            );
+
+        } catch (
+        error
+        ) {
+
+            console.error(
+                "Update permission error:",
+                error
+            );
+        }
+    }
+
+    async function
+        handleRevoke(
+            shareId
+        ) {
+
+        try {
+
+            const baseUrl =
+                await getBaseUrl();
+
+            const response =
+                await fetch(
+                    `${baseUrl}/shared/${shareId}`,
+                    {
+                        method:
+                            "DELETE",
+                    }
+                );
+
+            const data =
+                await response
+                    .json();
+
+            if (
+                !response.ok
+            ) {
+
+                console.error(
+                    data.error
+                );
+
+                return;
+            }
+
+            setExistingShares(
+                (
+                    prev
+                ) =>
+                    prev.filter(
+                        (
+                            share
+                        ) =>
+                            share.share_id
+                            !==
+                            shareId
+                    )
+            );
+
+        } catch (
+        error
+        ) {
+
+            console.error(
+                "Revoke error:",
+                error
+            );
+        }
+    }
 
     async function
         handleShare() {
@@ -146,7 +358,12 @@ export default function
                                 8,
                         }}
                     >
-                        Condividi file
+                        {
+                            existingShares
+                                .length > 0
+                                ? "Gestione condivisione"
+                                : "Condividi file"
+                        }
                     </Text>
 
                     <Text
@@ -162,6 +379,209 @@ export default function
                             file?.name
                         }
                     </Text>
+
+                    {
+                        existingShares
+                            .length > 0 && (
+
+                            <View
+                                style={{
+                                    backgroundColor:
+                                        "#F7F8FA",
+
+                                    borderRadius:
+                                        16,
+
+                                    padding:
+                                        16,
+
+                                    marginBottom:
+                                        20,
+
+                                    borderWidth:
+                                        1,
+
+                                    borderColor:
+                                        "#ECECEC",
+                                }}
+                            >
+
+                                <Text
+                                    style={{
+                                        fontSize:
+                                            16,
+
+                                        fontWeight:
+                                            "700",
+
+                                        marginBottom:
+                                            14,
+                                    }}
+                                >
+                                    Utenti con accesso
+                                </Text>
+
+                                <Text
+                                    style={{
+                                        fontSize:
+                                            13,
+
+                                        color:
+                                            "#666",
+
+                                        marginBottom:
+                                            14,
+                                    }}
+                                >
+                                    Tocca il permesso
+                                    per modificarlo
+                                </Text>
+
+                                {
+                                    existingShares
+                                        .map(
+                                            (
+                                                share,
+                                                index
+                                            ) => (
+
+                                                <View
+                                                    key={
+                                                        share.share_id
+                                                    }
+
+                                                    style={{
+                                                        flexDirection:
+                                                            "row",
+
+                                                        justifyContent:
+                                                            "space-between",
+
+                                                        alignItems:
+                                                            "center",
+
+                                                        paddingVertical:
+                                                            10,
+
+                                                        borderBottomWidth:
+                                                            index <
+                                                                existingShares.length
+                                                                - 1
+                                                                ? 1
+                                                                : 0,
+
+                                                        borderBottomColor:
+                                                            "#ECECEC",
+                                                    }}
+                                                >
+
+                                                    <Text
+                                                        style={{
+                                                            fontSize:
+                                                                15,
+
+                                                            fontWeight:
+                                                                "500",
+                                                        }}
+                                                    >
+                                                        {
+                                                            share.username
+                                                        }
+                                                    </Text>
+
+                                                    <View
+                                                        style={{
+                                                            flexDirection:
+                                                                "row",
+
+                                                            alignItems:
+                                                                "center",
+
+                                                            gap:
+                                                                10,
+                                                        }}
+                                                    >
+
+                                                        <TouchableOpacity
+                                                            onPress={() =>
+                                                                handleTogglePermission(
+                                                                    share
+                                                                )
+                                                            }
+
+                                                            activeOpacity={0.7}
+
+                                                            style={{
+                                                                backgroundColor:
+                                                                    share.permission
+                                                                        === "read"
+                                                                        ? "#EAF3FF"
+                                                                        : "#EEF8EE",
+
+                                                                paddingHorizontal:
+                                                                    10,
+
+                                                                paddingVertical:
+                                                                    6,
+
+                                                                borderRadius:
+                                                                    999,
+                                                            }}
+                                                        >
+                                                            <Text
+                                                                style={{
+                                                                    fontSize:
+                                                                        13,
+
+                                                                    fontWeight:
+                                                                        "600",
+
+                                                                    color:
+                                                                        share.permission
+                                                                            === "read"
+                                                                            ? "#007AFF"
+                                                                            : "#34C759",
+                                                                }}
+                                                            >
+                                                                {
+                                                                    share.permission
+                                                                        ===
+                                                                        "read"
+                                                                        ? "Lettura"
+                                                                        : "Modifica"
+                                                                }
+                                                            </Text>
+                                                        </TouchableOpacity>
+
+                                                        <TouchableOpacity
+                                                            onPress={() =>
+                                                                handleRevoke(
+                                                                    share.share_id
+                                                                )
+                                                            }
+                                                        >
+                                                            <Text
+                                                                style={{
+                                                                    color:
+                                                                        "#FF3B30",
+
+                                                                    fontWeight:
+                                                                        "600",
+                                                                }}
+                                                            >
+                                                                Rimuovi
+                                                            </Text>
+                                                        </TouchableOpacity>
+
+                                                    </View>
+
+                                                </View>
+                                            ))
+                                }
+
+                            </View>
+                        )
+                    }
 
                     <TextInput
                         value={
@@ -370,6 +790,6 @@ export default function
 
             </Pressable>
 
-        </Modal>
+        </Modal >
     );
 }
