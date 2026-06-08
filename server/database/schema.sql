@@ -144,7 +144,9 @@ CREATE TABLE IF NOT EXISTS shares (
         DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_file
-        FOREIGN KEY (file_id)
+        FOREIGN KEY (
+            file_id
+        )
         REFERENCES files(id)
         ON DELETE CASCADE,
 
@@ -153,5 +155,11 @@ CREATE TABLE IF NOT EXISTS shares (
             shared_with_user_id
         )
         REFERENCES users(id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT unique_file_share
+        UNIQUE (
+            file_id,
+            shared_with_user_id
+        )
 );

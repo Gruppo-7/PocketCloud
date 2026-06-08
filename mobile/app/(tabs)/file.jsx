@@ -22,6 +22,7 @@ import useFolders from "../../hooks/useFolders";
 import FolderCard from "../../components/FolderCard";
 import CreateFolderModal from "../../components/CreateFolderModal";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
+import ShareFileModal from "../../components/ShareFileModal";
 
 export default function FilesScreen() {
 
@@ -48,6 +49,8 @@ export default function FilesScreen() {
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folderHistory, setFolderHistory] = useState([]);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [fileToShare, setFileToShare] = useState(null);
 
   async function pickDocument() {
 
@@ -433,7 +436,7 @@ export default function FilesScreen() {
   }
 
   async function
-    shareFile(
+    openInSystem(
       file
     ) {
 
@@ -532,6 +535,97 @@ export default function FilesScreen() {
       Alert.alert(
         "Errore",
         "Impossibile aprire 'Apri in...'"
+      );
+    }
+  }
+
+  async function
+    shareWithUser({
+
+      file,
+
+      username,
+
+      permission,
+    }) {
+
+    try {
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/shared`,
+          {
+
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+
+                file_id:
+                  file.id,
+
+                username,
+
+                permission,
+              }),
+          }
+        );
+
+      const data =
+        await response
+          .json();
+
+      if (
+        !response.ok
+      ) {
+
+        Alert.alert(
+          "Errore",
+
+          data.error
+          ||
+          "Condivisione fallita"
+        );
+
+        return;
+      }
+
+      Alert.alert(
+        "Condivisione riuscita",
+
+        `${file.name}
+condiviso con
+${username}`
+      );
+
+      setShowShareModal(
+        false
+      );
+
+      setFileToShare(
+        null
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Share error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+
+        "Impossibile condividere il file"
       );
     }
   }
@@ -1116,7 +1210,7 @@ export default function FilesScreen() {
           }
 
           onShareFile={
-            shareFile
+            openInSystem
           }
 
           selectedFiles={
@@ -1133,6 +1227,19 @@ export default function FilesScreen() {
 
           setSelectionMode={
             setSelectionMode
+          }
+
+          onPocketShare={
+            (file) => {
+
+              setFileToShare(
+                file
+              );
+
+              setShowShareModal(
+                true
+              );
+            }
           }
         />
       </View>
@@ -1235,7 +1342,7 @@ export default function FilesScreen() {
                     onPress:
                       async () => {
 
-                        await shareFile(
+                        await openInSystem(
                           selectedFiles[0]
                         );
 
@@ -1401,6 +1508,31 @@ ${(
 
         onCreate={
           createFolder
+        }
+      />
+
+      <ShareFileModal
+        visible={
+          showShareModal
+        }
+
+        file={
+          fileToShare
+        }
+
+        onClose={() => {
+
+          setShowShareModal(
+            false
+          );
+
+          setFileToShare(
+            null
+          );
+        }}
+
+        onShare={
+          shareWithUser
         }
       />
 

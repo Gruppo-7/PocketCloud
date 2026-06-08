@@ -67,7 +67,11 @@ export default function
             );
 
             setFiles(
-                data
+                Array.isArray(
+                    data
+                )
+                    ? data
+                    : []
             );
 
         } catch (error) {

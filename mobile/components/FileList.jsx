@@ -14,8 +14,11 @@ export default function FileList({
     onDeleteFile,
     onOpenFile,
     onShareFile,
+    onPocketShare,
     showDeleteModal,
     setShowDeleteModal,
+    loading,
+    onRefresh
 }) {
     const [selectedFile, setSelectedFile] = useState(null);
 
@@ -378,6 +381,13 @@ ${new Date(
                         ? { justifyContent: "space-between" }
                         : undefined
                 }
+                refreshing={
+                    loading
+                }
+
+                onRefresh={
+                    onRefresh
+                }
                 contentContainerStyle={{
                     paddingBottom: 30,
                 }}
@@ -475,6 +485,34 @@ ${new Date(
                                 }}
                             >
                                 Apri in...
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => {
+
+                                const file =
+                                    selectedFile;
+
+                                setSelectedFile(
+                                    null
+                                );
+
+                                onPocketShare?.(
+                                    file
+                                );
+                            }}
+
+                            style={{
+                                paddingVertical: 12,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 16,
+                                }}
+                            >
+                                Condividi con...
                             </Text>
                         </TouchableOpacity>
 

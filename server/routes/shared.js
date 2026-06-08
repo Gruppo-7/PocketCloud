@@ -3,7 +3,8 @@ const express = require("express");
 const router = express.Router();
 
 const {
-    getSharedFiles
+    getSharedFiles,
+    shareFile
 } = require(
     "../controllers/sharedController"
 );
@@ -11,6 +12,11 @@ const {
 router.get(
     "/:userId",
     getSharedFiles
+);
+
+router.post(
+    "/",
+    shareFile
 );
 
 module.exports = router;

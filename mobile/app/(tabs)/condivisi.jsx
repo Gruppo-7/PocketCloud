@@ -13,6 +13,8 @@ import { useServerStatus } from "../../context/ServerContext";
 import SelectionHeader from "../../components/SelectionHeader";
 import SelectionMenu from "../../components/SelectionMenu";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
+import { useFocusEffect } from "@react-navigation/native";
+import React from "react";
 
 export default function SharedScreen() {
 
@@ -58,7 +60,7 @@ export default function SharedScreen() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const { files: sharedFiles, setFiles: setSharedFiles } = useFiles("shared");
+  const { files: sharedFiles, setFiles: setSharedFiles, reloadFiles, loading } = useFiles("shared");
 
   const deleteFile = (fileId) => {
     setSharedFiles(
@@ -69,6 +71,18 @@ export default function SharedScreen() {
         )
     );
   };
+
+  useFocusEffect(
+
+    React.useCallback(
+      () => {
+
+        reloadFiles();
+      },
+
+      []
+    )
+  );
 
   //RICERCA, ORDINAMENTO E FILTRAGGIO FILE
   const filteredFiles =
@@ -491,6 +505,14 @@ export default function SharedScreen() {
             `${item.owner} • ${item.permission}`
           }
           onDeleteFile={deleteFile}
+
+          loading={
+            loading
+          }
+
+          onRefresh={
+            reloadFiles
+          }
         />
       </View>
 
