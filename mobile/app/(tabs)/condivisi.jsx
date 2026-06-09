@@ -18,6 +18,106 @@ import React from "react";
 import { getCurrentUser } from "../../utils/storage";
 import { getBaseUrl } from "../../utils/api";
 import { openFile, openInSystem } from "../../utils/fileActions";
+import { uploadDocument } from "../../utils/uploadActions";
+import ShareFileModal from "../../components/ShareFileModal";
+
+async function
+  shareWithUser({
+
+    file,
+
+    username,
+
+    permission,
+  }) {
+
+  try {
+
+    const baseUrl =
+      await getBaseUrl();
+
+    const response =
+      await fetch(
+        `${baseUrl}/shared`,
+        {
+
+          method:
+            "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body:
+            JSON.stringify({
+
+              file_id:
+                file.id,
+
+              username,
+
+              permission,
+            }),
+        }
+      );
+
+    const data =
+      await response
+        .json();
+
+    if (
+      !response.ok
+    ) {
+
+      Alert.alert(
+        "Errore",
+
+        data.error
+        ||
+        "Condivisione fallita"
+      );
+
+      return;
+    }
+
+    Alert.alert(
+
+      "Condivisione riuscita",
+
+      `${file.name}
+condiviso con
+${username}`
+    );
+
+    setPendingUploadedFile(
+      null
+    );
+
+    setShowShareModal(
+      false
+    );
+
+    setFileToShare(
+      null
+    );
+
+  } catch (
+  error
+  ) {
+
+    console.error(
+      "Share error:",
+      error
+    );
+
+    Alert.alert(
+      "Errore",
+
+      "Impossibile condividere il file"
+    );
+  }
+}
 
 export default function SharedScreen() {
 
@@ -65,7 +165,17 @@ export default function SharedScreen() {
 
   const { files: sharedFiles, setFiles: setSharedFiles, reloadFiles, loading } = useFiles("shared");
 
+  const { files, reloadFiles: reloadMyFiles } = useFiles("files");
+
   const [currentUser, setCurrentUser] = useState(null);
+
+  const [showCloudPicker, setShowCloudPicker] = useState(false);
+
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  const [fileToShare, setFileToShare] = useState(null);
+
+  const [pendingUploadedFile, setPendingUploadedFile] = useState(null);
 
   const deleteFile = (fileId) => {
     setSharedFiles(
@@ -83,6 +193,8 @@ export default function SharedScreen() {
       () => {
 
         reloadFiles();
+
+        reloadMyFiles();
       },
 
       []
@@ -630,8 +742,8 @@ export default function SharedScreen() {
 
                     onPress:
                       () =>
-                        Alert.alert(
-                          "In arrivo"
+                        setShowCloudPicker(
+                          true
                         ),
                   },
 
@@ -640,10 +752,33 @@ export default function SharedScreen() {
                       "Dal dispositivo",
 
                     onPress:
-                      () =>
-                        Alert.alert(
-                          "In arrivo"
-                        ),
+                      async () => {
+
+                        const uploadedFile =
+                          await uploadDocument({
+
+                            reloadFiles:
+                              reloadMyFiles,
+                          });
+
+                        if (
+                          !uploadedFile
+                        ) {
+                          return;
+                        }
+
+                        setPendingUploadedFile(
+                          uploadedFile
+                        );
+
+                        setFileToShare(
+                          uploadedFile
+                        );
+
+                        setShowShareModal(
+                          true
+                        );
+                      },
                   },
 
                   {
@@ -791,6 +926,213 @@ ${(
 
         onConfirm={
           confirmDelete
+        }
+      />
+
+      {
+        showCloudPicker && (
+
+          <View
+            style={{
+              position:
+                "absolute",
+
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+
+              backgroundColor:
+                "rgba(0,0,0,0.35)",
+
+              justifyContent:
+                "center",
+
+              padding:
+                20,
+            }}
+          >
+
+            <View
+              style={{
+                backgroundColor:
+                  "#fff",
+
+                borderRadius:
+                  20,
+
+                padding:
+                  20,
+
+                maxHeight:
+                  "70%",
+              }}
+            >
+
+              <Text
+                style={{
+                  fontSize:
+                    20,
+
+                  fontWeight:
+                    "600",
+
+                  marginBottom:
+                    16,
+                }}
+              >
+                Seleziona file
+              </Text>
+
+              {
+                files.map(
+                  file => (
+
+                    <TouchableOpacity
+
+                      key={
+                        file.id
+                      }
+
+                      onPress={() => {
+
+                        setShowCloudPicker(
+                          false
+                        );
+
+                        setFileToShare(
+                          file
+                        );
+
+                        setShowShareModal(
+                          true
+                        );
+                      }}
+
+                      style={{
+                        paddingVertical:
+                          14,
+
+                        borderBottomWidth:
+                          1,
+
+                        borderBottomColor:
+                          "#ECECEC",
+                      }}
+                    >
+
+                      <Text
+                        style={{
+                          fontSize:
+                            16,
+                        }}
+                      >
+                        {
+                          file.name
+                        }
+                      </Text>
+
+                    </TouchableOpacity>
+                  )
+                )
+              }
+
+              <TouchableOpacity
+                onPress={() =>
+                  setShowCloudPicker(
+                    false
+                  )
+                }
+
+                style={{
+                  marginTop:
+                    16,
+
+                  alignItems:
+                    "center",
+                }}
+              >
+
+                <Text
+                  style={{
+                    color:
+                      "#007AFF",
+
+                    fontSize:
+                      16,
+
+                    fontWeight:
+                      "600",
+                  }}
+                >
+                  Annulla
+                </Text>
+
+              </TouchableOpacity>
+
+            </View>
+          </View>
+        )
+      }
+
+      <ShareFileModal
+        visible={
+          showShareModal
+        }
+
+        file={
+          fileToShare
+        }
+
+        onClose={
+          async () => {
+
+            if (
+              pendingUploadedFile
+            ) {
+
+              try {
+
+                const baseUrl =
+                  await getBaseUrl();
+
+                await fetch(
+                  `${baseUrl}/files/${pendingUploadedFile.id}`,
+                  {
+                    method:
+                      "DELETE",
+                  }
+                );
+
+                await reloadMyFiles();
+
+              } catch (
+              error
+              ) {
+
+                console.error(
+                  "Rollback delete error:",
+                  error
+                );
+              }
+            }
+
+            setPendingUploadedFile(
+              null
+            );
+
+            setShowShareModal(
+              false
+            );
+
+            setFileToShare(
+              null
+            );
+          }
+        }
+
+        onShare={
+          shareWithUser
         }
       />
 

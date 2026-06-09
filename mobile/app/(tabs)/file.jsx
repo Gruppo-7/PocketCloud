@@ -8,7 +8,6 @@ import SortMenu from "../../components/SortMenu";
 import { useState, useEffect } from "react";
 import FAB from "../../components/FAB";
 import useFiles from "../../hooks/useFiles";
-import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { getBaseUrl } from "../../utils/api";
@@ -25,6 +24,7 @@ import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 import ShareFileModal from "../../components/ShareFileModal";
 import { openFile, openInSystem } from "../../utils/fileActions";
 import * as Crypto from "expo-crypto";
+import * as DocumentPicker from "expo-document-picker";
 
 export default function FilesScreen() {
 
@@ -748,7 +748,10 @@ ${username}`
     );
 
   const visibleFolders =
-    folders.filter(
+    (
+      folders
+      || []
+    ).filter(
       folder =>
         folder.parent_folder_id
         ===
@@ -1391,8 +1394,7 @@ ${username}`
                   "Carica file",
 
                 onPress:
-                  () =>
-                    pickDocument(),
+                  pickDocument,
               },
 
               {
