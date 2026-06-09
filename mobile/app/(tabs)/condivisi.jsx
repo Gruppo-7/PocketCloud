@@ -17,6 +17,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import React from "react";
 import { getCurrentUser } from "../../utils/storage";
 import { getBaseUrl } from "../../utils/api";
+import { openFile, openInSystem } from "../../utils/fileActions";
 
 export default function SharedScreen() {
 
@@ -591,6 +592,10 @@ export default function SharedScreen() {
             `${item.owner} • ${item.permission}`
           }
           onDeleteFile={removeFromShared}
+
+          onOpenFile={openFile}
+
+          onShareFile={openInSystem}
 
           loading={
             loading

@@ -23,6 +23,7 @@ import FolderCard from "../../components/FolderCard";
 import CreateFolderModal from "../../components/CreateFolderModal";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 import ShareFileModal from "../../components/ShareFileModal";
+import { openFile, openInSystem } from "../../utils/fileActions";
 
 export default function FilesScreen() {
 
@@ -52,6 +53,89 @@ export default function FilesScreen() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [fileToShare, setFileToShare] = useState(null);
 
+  async function
+    uploadFile(
+      file,
+      conflictStrategy =
+        null
+    ) {
+
+    const user =
+      await getCurrentUser();
+
+    const formData =
+      new FormData();
+
+    formData.append(
+      "file",
+      {
+
+        uri:
+          file.uri,
+
+        name:
+          file.name,
+
+        type:
+          file.mimeType
+          ||
+          "application/octet-stream",
+      }
+    );
+
+    formData.append(
+      "owner_id",
+      user.id
+    );
+
+    formData.append(
+      "folder_id",
+      currentFolder
+        ?.id
+      ?? ""
+    );
+
+    if (
+      conflictStrategy
+    ) {
+
+      formData.append(
+        "conflict_strategy",
+        conflictStrategy
+      );
+    }
+
+    const baseUrl =
+      await getBaseUrl();
+
+    const response =
+      await fetch(
+        `${baseUrl}/files/upload`,
+        {
+
+          method:
+            "POST",
+
+          body:
+            formData,
+        }
+      );
+
+    const data =
+      await response
+        .json();
+
+    console.log(
+      "Upload response:",
+      data
+    );
+
+    return {
+      response,
+      data
+    };
+  }
+
   async function pickDocument() {
 
     try {
@@ -80,66 +164,183 @@ export default function FilesScreen() {
         file
       );
 
-      const user = await getCurrentUser();
-
-      const formData = new FormData();
-
-      formData.append(
-        "file",
-        {
-
-          uri:
-            file.uri,
-
-          name:
-            file.name,
-
-          type:
-            file.mimeType
-            ||
-            "application/octet-stream",
-        }
-      );
-
-      formData.append(
-        "owner_id",
-        user.id
-      );
-
-      formData.append(
-        "folder_id",
-        currentFolder
-          ?.id
-        ?? ""
-      );
-
-      const baseUrl =
-        await getBaseUrl();
-
-      const response =
-        await fetch(
-          `${baseUrl}/files/upload`,
-          {
-
-            method:
-              "POST",
-
-            body:
-              formData,
-          }
-        );
-
-      const data =
-        await response.json();
-
-      console.log(
-        "Upload response:",
+      const {
+        response,
         data
-      );
+      } =
+        await uploadFile(
+          file
+        );
 
       if (
         !response.ok
       ) {
+
+        if (
+          data.conflict
+        ) {
+
+          Alert.alert(
+
+            "File già esistente",
+
+            `Esiste già un file chiamato "${file.name}"`,
+
+            [
+
+              {
+                text:
+                  "Annulla",
+
+                style:
+                  "cancel",
+              },
+
+              {
+                text:
+                  "Mantieni entrambi",
+
+                onPress:
+                  async () => {
+
+                    try {
+
+                      const {
+
+                        response:
+                        retryResponse,
+
+                        data:
+                        retryData
+
+                      } =
+                        await uploadFile(
+
+                          file,
+
+                          "keep_both"
+                        );
+
+                      console.log(
+                        "Retry upload:",
+                        retryData
+                      );
+
+                      if (
+                        !retryResponse.ok
+                      ) {
+
+                        Alert.alert(
+                          "Errore",
+                          "Upload fallito"
+                        );
+
+                        return;
+                      }
+
+                      await reloadFiles();
+
+                      Alert.alert(
+
+                        "Upload riuscito",
+
+                        retryData
+                          .file
+                          .name
+                      );
+
+                    } catch (
+                    error
+                    ) {
+
+                      console.error(
+                        "Retry upload error:",
+                        error
+                      );
+
+                      Alert.alert(
+                        "Errore",
+                        "Upload fallito"
+                      );
+                    }
+                  },
+              },
+
+              {
+                text:
+                  "Sostituisci",
+
+                style:
+                  "destructive",
+
+                onPress:
+                  async () => {
+
+                    try {
+
+                      const {
+
+                        response:
+                        retryResponse,
+
+                        data:
+                        retryData
+
+                      } =
+                        await uploadFile(
+
+                          file,
+
+                          "replace"
+                        );
+
+                      console.log(
+                        "Replace upload:",
+                        retryData
+                      );
+
+                      if (
+                        !retryResponse.ok
+                      ) {
+
+                        Alert.alert(
+                          "Errore",
+                          "Sostituzione fallita"
+                        );
+
+                        return;
+                      }
+
+                      await reloadFiles();
+
+                      Alert.alert(
+                        "File sostituito",
+                        retryData
+                          .file
+                          .name
+                      );
+
+                    } catch (
+                    error
+                    ) {
+
+                      console.error(
+                        "Replace upload error:",
+                        error
+                      );
+
+                      Alert.alert(
+                        "Errore",
+                        "Sostituzione fallita"
+                      );
+                    }
+                  },
+              },
+            ]
+          );
+
+          return;
+        }
 
         throw new Error(
           data.error
@@ -354,187 +555,6 @@ export default function FilesScreen() {
       Alert.alert(
         "Errore",
         "Impossibile eliminare cartella"
-      );
-    }
-  }
-
-  async function openFile(file) {
-
-    try {
-
-      const baseUrl =
-        await getBaseUrl();
-
-      const fileUri =
-        FileSystem
-          .documentDirectory
-        + file.name;
-
-      const downloadUrl =
-        `${baseUrl}/files/download/${file.id}`;
-
-      console.log(
-        "Downloading:",
-        downloadUrl
-      );
-
-      const result =
-        await FileSystem
-          .downloadAsync(
-            downloadUrl,
-            fileUri
-          );
-
-      console.log(
-        "Downloaded:",
-        result
-      );
-
-      if (
-        Platform.OS ===
-        "ios"
-      ) {
-
-        await Linking
-          .openURL(
-            result.uri
-          );
-
-      } else {
-
-        const contentUri =
-          await FileSystem
-            .getContentUriAsync(
-              result.uri
-            );
-
-        await IntentLauncher
-          .startActivityAsync(
-            "android.intent.action.VIEW",
-            {
-              data:
-                contentUri,
-
-              flags:
-                1,
-            }
-          );
-      }
-
-    } catch (error) {
-
-      console.error(
-        "Open file error:",
-        error
-      );
-
-      Alert.alert(
-        "Errore",
-        "Impossibile aprire file"
-      );
-    }
-  }
-
-  async function
-    openInSystem(
-      file
-    ) {
-
-    try {
-
-      if (!file) {
-        return;
-      }
-
-      const baseUrl =
-        await getBaseUrl();
-
-      const fileUri =
-        FileSystem
-          .documentDirectory
-        + file.name;
-
-      const downloadUrl =
-        `${baseUrl}/files/download/${file.id}`;
-
-      console.log(
-        "Sharing:",
-        downloadUrl
-      );
-
-      const result =
-        await FileSystem
-          .downloadAsync(
-            downloadUrl,
-            fileUri
-          );
-
-      console.log(
-        "Downloaded for share:",
-        result
-      );
-
-      const canShare =
-        await Sharing
-          .isAvailableAsync();
-
-      console.log(
-        "Can share:",
-        canShare
-      );
-
-      if (
-        !canShare
-      ) {
-
-        Alert.alert(
-          "Errore",
-          "Apri in... non disponibile"
-        );
-
-        return;
-      }
-
-      console.log(
-        "BEFORE SHARE"
-      );
-
-      await new Promise(
-        resolve =>
-          setTimeout(
-            resolve,
-            300
-          )
-      );
-
-      const fileInfo =
-        await FileSystem
-          .getInfoAsync(
-            result.uri
-          );
-
-      console.log(
-        "File info:",
-        fileInfo
-      );
-
-      // versione minimale
-      await Sharing.shareAsync(result.uri);
-
-      console.log(
-        "AFTER SHARE"
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Share file error:",
-        error
-      );
-
-      Alert.alert(
-        "Errore",
-        "Impossibile aprire 'Apri in...'"
       );
     }
   }

@@ -29,6 +29,7 @@ async function
 
     f.id,
     f.name,
+    f.storage_key,
     f.size,
     f.mime_type,
     f.folder_id,
