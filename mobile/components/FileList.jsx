@@ -1,6 +1,7 @@
 import { Alert, FlatList, Text, View, TouchableOpacity, Modal, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
+import FolderCard from "./FolderCard";
 
 export default function FileList({
     data,
@@ -19,7 +20,13 @@ export default function FileList({
     showDeleteModal,
     setShowDeleteModal,
     loading,
-    onRefresh
+    onRefresh,
+    selectedFolders,
+    setSelectedFolders,
+    currentFolder,
+    setCurrentFolder,
+    folderHistory,
+    setFolderHistory
 }) {
     const [selectedFile, setSelectedFile] = useState(null);
 
@@ -32,59 +39,22 @@ export default function FileList({
             return;
         }
 
-        Alert.alert(
-
-            sharedMode
-                ? "Rimuovere dai condivisi?"
-
-                : "Eliminare file?",
-
-            sharedMode
-                ? "Non avrai più accesso a questo file."
-
-                : "Il file verrà eliminato.",
-
+        setSelectedFiles(
             [
-                {
-                    text:
-                        "Annulla",
-
-                    style:
-                        "cancel",
-                },
-
-                {
-                    text:
-                        sharedMode
-                            ? "Rimuovi"
-                            : "Elimina",
-
-                    style:
-                        "destructive",
-
-                    onPress:
-                        () => {
-
-                            setSelectedFiles(
-                                [
-                                    selectedFile
-                                ]
-                            );
-
-                            setSelectionMode(
-                                true
-                            );
-
-                            setSelectedFile(
-                                null
-                            );
-
-                            onDeleteFile?.(
-                                selectedFile.id
-                            );
-                        },
-                },
+                selectedFile
             ]
+        );
+
+        setSelectionMode(
+            true
+        );
+
+        setSelectedFile(
+            null
+        );
+
+        setShowDeleteModal(
+            true
         );
     }
 
@@ -158,6 +128,56 @@ ${new Date(
     }
 
     function renderItem({ item }) {
+
+        if (
+            item.itemType
+            ===
+            "folder"
+        ) {
+
+            return (
+
+                <FolderCard
+
+                    folder={item}
+
+                    gridView={
+                        gridView
+                    }
+
+                    selectionMode={
+                        selectionMode
+                    }
+
+                    selectedFolders={
+                        selectedFolders
+                    }
+
+                    setSelectedFolders={
+                        setSelectedFolders
+                    }
+
+                    setSelectionMode={
+                        setSelectionMode
+                    }
+
+                    onPress={() => {
+
+                        setFolderHistory(
+                            prev => [
+                                ...prev,
+                                currentFolder,
+                            ]
+                        );
+
+                        setCurrentFolder(
+                            item
+                        );
+                    }}
+                />
+            );
+        }
+
         return (
             <TouchableOpacity
                 disabled={

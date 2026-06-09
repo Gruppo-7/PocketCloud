@@ -24,6 +24,7 @@ import CreateFolderModal from "../../components/CreateFolderModal";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 import ShareFileModal from "../../components/ShareFileModal";
 import { openFile, openInSystem } from "../../utils/fileActions";
+import * as Crypto from "expo-crypto";
 
 export default function FilesScreen() {
 
@@ -56,8 +57,8 @@ export default function FilesScreen() {
   async function
     uploadFile(
       file,
-      conflictStrategy =
-        null
+      conflictStrategy = null,
+      fileHash
     ) {
 
     const user =
@@ -93,6 +94,11 @@ export default function FilesScreen() {
       currentFolder
         ?.id
       ?? ""
+    );
+
+    formData.append(
+      "sha256_fingerprint",
+      fileHash
     );
 
     if (
@@ -136,6 +142,51 @@ export default function FilesScreen() {
     };
   }
 
+  async function
+    generateFileHash(
+      uri
+    ) {
+
+    try {
+
+      const fileContent =
+        await FileSystem
+          .readAsStringAsync(
+            uri,
+            {
+              encoding:
+                FileSystem
+                  .EncodingType
+                  .Base64,
+            }
+          );
+
+      const hash =
+        await Crypto
+          .digestStringAsync(
+
+            Crypto
+              .CryptoDigestAlgorithm
+              .SHA256,
+
+            fileContent
+          );
+
+      return hash;
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Hash error:",
+        error
+      );
+
+      throw error;
+    }
+  }
+
   async function pickDocument() {
 
     try {
@@ -159,6 +210,16 @@ export default function FilesScreen() {
 
       const file = result.assets[0];
 
+      const fileHash =
+        await generateFileHash(
+          file.uri
+        );
+
+      console.log(
+        "SHA256:",
+        fileHash
+      );
+
       console.log(
         "Selected file:",
         file
@@ -169,7 +230,9 @@ export default function FilesScreen() {
         data
       } =
         await uploadFile(
-          file
+          file,
+          undefined,
+          fileHash
         );
 
       if (
@@ -182,9 +245,15 @@ export default function FilesScreen() {
 
           Alert.alert(
 
-            "File già esistente",
+            data.sameContent
+              ? "File già esistente"
+              : "Nome già utilizzato",
 
-            `Esiste già un file chiamato "${file.name}"`,
+            data.sameContent
+
+              ? `Questo file esiste già.`
+
+              : `Esiste già un file chiamato "${file.name}", ma il contenuto è diverso.`,
 
             [
 
@@ -218,7 +287,9 @@ export default function FilesScreen() {
 
                           file,
 
-                          "keep_both"
+                          "keep_both",
+
+                          fileHash
                         );
 
                       console.log(
@@ -291,7 +362,9 @@ export default function FilesScreen() {
 
                           file,
 
-                          "replace"
+                          "replace",
+
+                          fileHash
                         );
 
                       console.log(
@@ -442,7 +515,8 @@ export default function FilesScreen() {
 
   async function
     deleteFile(
-      fileId
+      fileId,
+      showAlert = true
     ) {
 
     try {
@@ -479,10 +553,21 @@ export default function FilesScreen() {
 
       await reloadFiles();
 
-      Alert.alert(
-        "Eliminato",
-        "File rimosso"
+      setSelectedFiles([]);
+
+      setSelectionMode(
+        false
       );
+
+      if (
+        showAlert
+      ) {
+
+        Alert.alert(
+          "Eliminato",
+          "File rimosso"
+        );
+      }
 
     } catch (error) {
 
@@ -662,6 +747,18 @@ ${username}`
         )
     );
 
+  const visibleFolders =
+    folders.filter(
+      folder =>
+        folder.parent_folder_id
+        ===
+        (
+          currentFolder
+            ?.id
+          ?? null
+        )
+    );
+
 
   // RICERCA, ORDINAMENTO FILE E FILTRAGGIO FILE
   const filteredFiles = visibleFiles.filter((file) => {
@@ -757,6 +854,25 @@ ${username}`
         }
       );
 
+  const combinedItems =
+    [
+      ...visibleFolders.map(
+        folder => ({
+          ...folder,
+          itemType:
+            "folder",
+        })
+      ),
+
+      ...sortedFiles.map(
+        file => ({
+          ...file,
+          itemType:
+            "file",
+        })
+      ),
+    ];
+
   useEffect(() => {
 
     const totalSelected =
@@ -793,7 +909,8 @@ ${username}`
       ) {
 
         await deleteFile(
-          file.id
+          file.id,
+          false
         );
       }
 
@@ -817,6 +934,26 @@ ${username}`
 
       setSelectionMode(
         false
+      );
+
+      const totalDeleted =
+        selectedFiles.length
+        +
+        selectedFolders.length;
+
+      Alert.alert(
+
+        totalDeleted === 1
+
+          ? "Eliminato"
+
+          : "Eliminati",
+
+        totalDeleted === 1
+
+          ? "Elemento eliminato"
+
+          : `${totalDeleted} elementi eliminati`
       );
 
       setShowDeleteModal(
@@ -1148,74 +1285,35 @@ ${username}`
           }
         />
 
-        {
-          folders.filter(
-            folder =>
-              folder.parent_folder_id
-              ===
-              (
-                currentFolder
-                  ?.id
-                ?? null
-              )
-          )
-            .map(
-              folder => (
-
-                <FolderCard
-
-                  selectionMode={
-                    selectionMode
-                  }
-
-                  selectedFolders={
-                    selectedFolders
-                  }
-
-                  setSelectedFolders={
-                    setSelectedFolders
-                  }
-
-                  setSelectionMode={
-                    setSelectionMode
-                  }
-
-                  key={
-                    folder.id
-                  }
-
-                  folder={
-                    folder
-                  }
-
-                  gridView={
-                    gridView
-                  }
-
-                  onPress={() => {
-
-                    setFolderHistory(
-                      prev => [
-                        ...prev,
-                        currentFolder,
-                      ]
-                    );
-
-                    setCurrentFolder(
-                      folder
-                    );
-                  }}
-                />
-              )
-            )
-        }
-
         <FileList
-          data={sortedFiles}
+          data={combinedItems}
           gridView={gridView}
           disabled={!serverOnline}
           showDeleteModal={showDeleteModal}
           setShowDeleteModal={setShowDeleteModal}
+          selectedFolders={
+            selectedFolders
+          }
+
+          setSelectedFolders={
+            setSelectedFolders
+          }
+
+          currentFolder={
+            currentFolder
+          }
+
+          setCurrentFolder={
+            setCurrentFolder
+          }
+
+          folderHistory={
+            folderHistory
+          }
+
+          setFolderHistory={
+            setFolderHistory
+          }
 
           renderSubtitle={(item) =>
             "2 MB • ieri"

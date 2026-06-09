@@ -94,7 +94,7 @@ async function uploadFile(
                 });
         }
 
-        const { owner_id, folder_id, conflict_strategy } = req.body;
+        const { owner_id, folder_id, conflict_strategy, sha256_fingerprint } = req.body;
 
         let fileName =
             req.file
@@ -104,18 +104,19 @@ async function uploadFile(
             await pool.query(
                 `
         SELECT
-            id,
-            name
-        FROM files
-        WHERE
-            owner_id = $1
+    id,
+    name,
+    sha256_fingerprint
+FROM files
+WHERE
+    owner_id = $1
 
-            AND folder_id
-            IS NOT DISTINCT FROM $2
+    AND folder_id
+    IS NOT DISTINCT FROM $2
 
-            AND name = $3
+    AND name = $3
 
-        LIMIT 1
+LIMIT 1
         `,
                 [
 
@@ -133,6 +134,13 @@ async function uploadFile(
                 .rows
                 .length > 0
         ) {
+
+            const isSameContent =
+                existingFile
+                    .rows[0]
+                    .sha256_fingerprint
+                ===
+                sha256_fingerprint;
 
             if (
                 conflict_strategy
@@ -160,8 +168,7 @@ async function uploadFile(
                 const oldFile =
                     await pool.query(
                         `
-                SELECT
-                    *
+                SELECT *
                 FROM files
                 WHERE id = $1
                 `,
@@ -207,9 +214,11 @@ async function uploadFile(
 
                     mime_type = $3,
 
+                    sha256_fingerprint = $4,
+
                     updated_at = NOW()
 
-                WHERE id = $4
+                WHERE id = $5
 
                 RETURNING *
                 `,
@@ -223,6 +232,8 @@ async function uploadFile(
 
                             req.file
                                 .mimetype,
+
+                            sha256_fingerprint,
 
                             existingFile
                                 .rows[0]
@@ -255,6 +266,9 @@ async function uploadFile(
                         conflict:
                             true,
 
+                        sameContent:
+                            isSameContent,
+
                         existingFile:
                             existingFile
                                 .rows[0],
@@ -277,7 +291,8 @@ async function uploadFile(
                     name,
                     storage_key,
                     size,
-                    mime_type
+                    mime_type,
+                    sha256_fingerprint
                 )
                 VALUES
                 (
@@ -286,7 +301,8 @@ async function uploadFile(
                 $3,
                 $4,
                 $5,
-                $6
+                $6,
+                $7
                 )
                 RETURNING *
                 `,
@@ -305,6 +321,8 @@ async function uploadFile(
 
                     req.file
                         .mimetype,
+
+                    sha256_fingerprint
                 ]
             );
 

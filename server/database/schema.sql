@@ -68,54 +68,50 @@ CREATE TABLE IF NOT EXISTS folders (
 
 CREATE TABLE IF NOT EXISTS files (
 
-```
-id SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
 
-owner_id INTEGER
-    NOT NULL,
+    owner_id INTEGER
+        NOT NULL,
 
-folder_id INTEGER,
+    folder_id INTEGER,
 
-name VARCHAR(255)
-    NOT NULL,
+    name VARCHAR(255)
+        NOT NULL,
 
-storage_key TEXT
-    NOT NULL,
+    storage_key TEXT
+        NOT NULL,
 
-size BIGINT
-    DEFAULT 0,
+    size BIGINT
+        NOT NULL,
 
-mime_type TEXT,
+    mime_type VARCHAR(255),
 
-sha256_fingerprint TEXT,
+    sha256_fingerprint TEXT,
 
-encryption_iv TEXT,
+    encryption_iv TEXT,
 
-algorithm TEXT,
+    algorithm VARCHAR(255),
 
-created_at TIMESTAMP
-    DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP,
 
-updated_at TIMESTAMP
-    DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP,
 
-CONSTRAINT fk_owner
-    FOREIGN KEY (
-        owner_id
-    )
-    REFERENCES users(id)
-    ON DELETE CASCADE,
+    CONSTRAINT fk_owner
+        FOREIGN KEY (
+            owner_id
+        )
+        REFERENCES users(id)
+        ON DELETE CASCADE,
 
-CONSTRAINT fk_folder
-    FOREIGN KEY (
-        folder_id
-    )
-    REFERENCES folders(id)
-    ON DELETE CASCADE
-```
-
+    CONSTRAINT fk_folder
+        FOREIGN KEY (
+            folder_id
+        )
+        REFERENCES folders(id)
+        ON DELETE CASCADE
 );
-
 
 -- =========================
 -- SHARES
