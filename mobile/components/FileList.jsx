@@ -10,6 +10,7 @@ export default function FileList({
     selectionMode,
     setSelectionMode,
     disabled = false,
+    sharedMode = false,
     renderSubtitle,
     onDeleteFile,
     onOpenFile,
@@ -22,7 +23,8 @@ export default function FileList({
 }) {
     const [selectedFile, setSelectedFile] = useState(null);
 
-    function handleDelete() {
+    function
+        handleDelete() {
 
         if (
             !selectedFile
@@ -30,20 +32,59 @@ export default function FileList({
             return;
         }
 
-        setSelectedFiles(
-            [selectedFile]
-        );
+        Alert.alert(
 
-        setSelectionMode(
-            true
-        );
+            sharedMode
+                ? "Rimuovere dai condivisi?"
 
-        setSelectedFile(
-            null
-        );
+                : "Eliminare file?",
 
-        setShowDeleteModal(
-            true
+            sharedMode
+                ? "Non avrai più accesso a questo file."
+
+                : "Il file verrà eliminato.",
+
+            [
+                {
+                    text:
+                        "Annulla",
+
+                    style:
+                        "cancel",
+                },
+
+                {
+                    text:
+                        sharedMode
+                            ? "Rimuovi"
+                            : "Elimina",
+
+                    style:
+                        "destructive",
+
+                    onPress:
+                        () => {
+
+                            setSelectedFiles(
+                                [
+                                    selectedFile
+                                ]
+                            );
+
+                            setSelectionMode(
+                                true
+                            );
+
+                            setSelectedFile(
+                                null
+                            );
+
+                            onDeleteFile?.(
+                                selectedFile.id
+                            );
+                        },
+                },
+            ]
         );
     }
 
@@ -488,33 +529,38 @@ ${new Date(
                             </Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            onPress={() => {
+                        {
+                            !sharedMode && (
 
-                                const file =
-                                    selectedFile;
+                                <TouchableOpacity
+                                    onPress={() => {
 
-                                setSelectedFile(
-                                    null
-                                );
+                                        const file =
+                                            selectedFile;
 
-                                onPocketShare?.(
-                                    file
-                                );
-                            }}
+                                        setSelectedFile(
+                                            null
+                                        );
 
-                            style={{
-                                paddingVertical: 12,
-                            }}
-                        >
-                            <Text
-                                style={{
-                                    fontSize: 16,
-                                }}
-                            >
-                                Condividi con...
-                            </Text>
-                        </TouchableOpacity>
+                                        onPocketShare?.(
+                                            file
+                                        );
+                                    }}
+
+                                    style={{
+                                        paddingVertical: 12,
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            fontSize: 16,
+                                        }}
+                                    >
+                                        Condividi con...
+                                    </Text>
+                                </TouchableOpacity>
+                            )
+                        }
 
                         <TouchableOpacity
                             onPress={() => {
@@ -552,7 +598,11 @@ ${new Date(
                                     fontSize: 16,
                                 }}
                             >
-                                Elimina
+                                {
+                                    sharedMode
+                                        ? "Rimuovi dai condivisi"
+                                        : "Elimina"
+                                }
                             </Text>
                         </TouchableOpacity>
                     </View>

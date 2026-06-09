@@ -15,6 +15,8 @@ import SelectionMenu from "../../components/SelectionMenu";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 import { useFocusEffect } from "@react-navigation/native";
 import React from "react";
+import { getCurrentUser } from "../../utils/storage";
+import { getBaseUrl } from "../../utils/api";
 
 export default function SharedScreen() {
 
@@ -62,6 +64,8 @@ export default function SharedScreen() {
 
   const { files: sharedFiles, setFiles: setSharedFiles, reloadFiles, loading } = useFiles("shared");
 
+  const [currentUser, setCurrentUser] = useState(null);
+
   const deleteFile = (fileId) => {
     setSharedFiles(
       (prevFiles) =>
@@ -83,6 +87,23 @@ export default function SharedScreen() {
       []
     )
   );
+
+  useEffect(() => {
+
+    async function
+      loadUser() {
+
+      const user =
+        await getCurrentUser();
+
+      setCurrentUser(
+        user
+      );
+    }
+
+    loadUser();
+
+  }, []);
 
   //RICERCA, ORDINAMENTO E FILTRAGGIO FILE
   const filteredFiles =
@@ -205,10 +226,72 @@ export default function SharedScreen() {
     selectionMode
   ]);
 
+  async function
+    removeFromShared(
+      fileId
+    ) {
+
+    try {
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/shared/file/${fileId}/user/${currentUser.id}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
+
+      const data =
+        await response
+          .json();
+
+      if (
+        !response.ok
+      ) {
+
+        Alert.alert(
+          "Errore",
+          data.error
+        );
+
+        return;
+      }
+
+      deleteFile(
+        fileId
+      );
+
+      setSelectedFiles(
+        []
+      );
+
+      setSelectionMode(
+        false
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile rimuovere il file condiviso"
+      );
+    }
+  }
+
   function
     confirmDelete() {
 
-    deleteFile(
+    removeFromShared(
       selectedFiles[0]
         ?.id
     );
@@ -489,6 +572,9 @@ export default function SharedScreen() {
           selectedFiles={
             selectedFiles
           }
+          sharedMode={
+            true
+          }
 
           setSelectedFiles={
             setSelectedFiles
@@ -504,7 +590,7 @@ export default function SharedScreen() {
           renderSubtitle={(item) =>
             `${item.owner} • ${item.permission}`
           }
-          onDeleteFile={deleteFile}
+          onDeleteFile={removeFromShared}
 
           loading={
             loading

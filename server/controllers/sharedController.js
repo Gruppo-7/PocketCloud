@@ -486,10 +486,78 @@ async function
     }
 }
 
+async function
+    removeSharedFile(
+        req,
+        res
+    ) {
+
+    try {
+
+        const {
+            fileId,
+            userId
+        } = req.params;
+
+        const result =
+            await pool.query(
+                `
+                DELETE
+                FROM shares
+                WHERE
+                    file_id = $1
+                    AND
+                    shared_with_user_id = $2
+                RETURNING *
+                `,
+                [
+                    fileId,
+                    userId
+                ]
+            );
+
+        if (
+            result.rows
+                .length === 0
+        ) {
+
+            return res
+                .status(404)
+                .json({
+                    error:
+                        "Condivisione non trovata"
+                });
+        }
+
+        return res
+            .status(200)
+            .json({
+                message:
+                    "File rimosso dai condivisi"
+            });
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+            error
+        );
+
+        return res
+            .status(500)
+            .json({
+                error:
+                    "Server error"
+            });
+    }
+}
+
 module.exports = {
     getSharedFiles,
     shareFile,
     getFileShares,
     revokeShare,
-    updateSharePermission
+    updateSharePermission,
+    removeSharedFile
 };
