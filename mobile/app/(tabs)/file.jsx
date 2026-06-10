@@ -25,6 +25,7 @@ import ShareFileModal from "../../components/ShareFileModal";
 import { openFile, openInSystem } from "../../utils/fileActions";
 import * as Crypto from "expo-crypto";
 import * as DocumentPicker from "expo-document-picker";
+import MoveModal from "../../components/MoveModal";
 
 export default function FilesScreen() {
 
@@ -47,12 +48,15 @@ export default function FilesScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const { serverOnline } = useServerStatus();
   const { files, setFiles, reloadFiles } = useFiles("files");
-  const { folders, setFolders } = useFolders();
+  const { folders, setFolders, reloadFolders } = useFolders();
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folderHistory, setFolderHistory] = useState([]);
   const [showShareModal, setShowShareModal] = useState(false);
   const [fileToShare, setFileToShare] = useState(null);
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [selectedMoveFolder, setSelectedMoveFolder] = useState(null);
+  const [itemToMove, setItemToMove] = useState(null);
 
   async function
     uploadFile(
@@ -509,6 +513,467 @@ export default function FilesScreen() {
         "Errore",
 
         "Impossibile creare la cartella"
+      );
+    }
+  }
+
+  async function
+    renameFolder(
+      folderId,
+      newName
+    ) {
+
+    try {
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/folders/${folderId}/rename`,
+          {
+
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                name:
+                  newName,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      console.log(
+        "Rename folder:",
+        data
+      );
+
+      if (
+        !response.ok
+      ) {
+
+        Alert.alert(
+
+          "Errore",
+
+          data.error
+          ||
+          "Rinomina fallita"
+        );
+
+        return;
+      }
+
+      setFolders(
+        prev =>
+          prev.map(
+            folder =>
+
+              folder.id ===
+                folderId
+
+                ? {
+                  ...folder,
+                  name:
+                    newName,
+                }
+
+                : folder
+          )
+      );
+
+      Alert.alert(
+        "Rinominata",
+        "Cartella rinominata"
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Rename folder error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile rinominare cartella"
+      );
+    }
+  }
+
+  function
+    isDescendantFolder(
+      folderId,
+      targetFolderId
+    ) {
+
+    if (
+      !targetFolderId
+    ) {
+
+      return false;
+    }
+
+    let currentId =
+      targetFolderId;
+
+    while (
+      currentId
+      !==
+      null
+    ) {
+
+      if (
+        currentId
+        ===
+        folderId
+      ) {
+
+        return true;
+      }
+
+      const folder =
+        folders.find(
+          f =>
+            f.id
+            ===
+            currentId
+        );
+
+      if (
+        !folder
+      ) {
+
+        return false;
+      }
+
+      currentId =
+        folder.parent_folder_id;
+    }
+
+    return false;
+  }
+
+  async function
+    moveItem() {
+
+    try {
+
+      if (
+        !itemToMove
+      ) {
+        return;
+      }
+
+      const targetFolderId =
+        selectedMoveFolder
+          ?.id
+        ?? null;
+
+      const isFolder =
+
+        itemToMove
+          .itemType
+        ===
+        "folder";
+
+      /* stessa posizione */
+
+      if (
+        !isFolder
+      ) {
+
+        const currentFolderId =
+
+          itemToMove
+            .folder_id
+          ?? null;
+
+        if (
+          currentFolderId
+          ===
+          targetFolderId
+        ) {
+
+          Alert.alert(
+
+            "Nessuno spostamento",
+
+            "Il file si trova già qui."
+          );
+
+          return;
+        }
+
+      } else {
+
+        const currentParentId =
+
+          itemToMove
+            .parent_folder_id
+          ?? null;
+
+        if (
+          currentParentId
+          ===
+          targetFolderId
+        ) {
+
+          Alert.alert(
+
+            "Nessuno spostamento",
+
+            "La cartella si trova già qui."
+          );
+
+          return;
+        }
+
+        /* sé stessa */
+
+        if (
+          Number(
+            targetFolderId
+          )
+          ===
+          Number(
+            itemToMove.id
+          )
+        ) {
+
+          Alert.alert(
+
+            "Spostamento non valido",
+
+            "Una cartella non può essere spostata dentro sé stessa."
+          );
+
+          return;
+        }
+
+        /* sottocartella propria */
+
+        if (
+
+          isDescendantFolder(
+
+            Number(
+              itemToMove.id
+            ),
+
+            Number(
+              targetFolderId
+            )
+          )
+        ) {
+
+          Alert.alert(
+
+            "Spostamento non valido",
+
+            "Una cartella non può essere spostata dentro una sua sottocartella."
+          );
+
+          return;
+        }
+      }
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const endpoint =
+
+        isFolder
+
+          ? `${baseUrl}/folders/${itemToMove.id}/move`
+
+          : `${baseUrl}/files/${itemToMove.id}/move`;
+
+      const body =
+
+        isFolder
+
+          ? {
+            parent_folder_id:
+              selectedMoveFolder
+                ?.id
+              ?? null,
+          }
+
+          : {
+            folder_id:
+              selectedMoveFolder
+                ?.id
+              ?? null,
+          };
+
+      const response =
+        await fetch(
+          endpoint,
+          {
+
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                body
+              ),
+          }
+        );
+
+      const data =
+        await response
+          .json();
+
+      console.log(
+        "Move response:",
+        data
+      );
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
+        );
+      }
+
+      await reloadFiles?.();
+
+      await reloadFolders?.();
+
+      setShowMoveModal(
+        false
+      );
+
+      setSelectedMoveFolder(
+        null
+      );
+
+      setItemToMove(
+        null
+      );
+
+      Alert.alert(
+
+        "Spostato",
+
+        isFolder
+
+          ? "Cartella spostata"
+
+          : "File spostato"
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Move error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile spostare elemento"
+      );
+    }
+  }
+
+  async function
+    renameFile(
+      fileId,
+      newName
+    ) {
+
+    try {
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/files/${fileId}/rename`,
+          {
+
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                name:
+                  newName,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      console.log(
+        "Rename response:",
+        data
+      );
+
+      if (
+        !response.ok
+      ) {
+
+        Alert.alert(
+
+          "Errore",
+
+          data.error
+          ||
+          "Rinomina fallita"
+        );
+
+        return;
+      }
+
+      await reloadFiles();
+
+      Alert.alert(
+        "Rinominato",
+        "File rinominato"
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Rename error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile rinominare file"
       );
     }
   }
@@ -1318,6 +1783,14 @@ ${username}`
             setFolderHistory
           }
 
+          onRenameFile={
+            renameFile
+          }
+
+          onRenameFolder={
+            renameFolder
+          }
+
           renderSubtitle={(item) =>
             "2 MB • ieri"
           }
@@ -1348,6 +1821,18 @@ ${username}`
 
           setSelectionMode={
             setSelectionMode
+          }
+
+          folders={
+            folders
+          }
+
+          setItemToMove={
+            setItemToMove
+          }
+
+          setShowMoveModal={
+            setShowMoveModal
           }
 
           onPocketShare={
@@ -1653,6 +2138,43 @@ ${(
 
         onShare={
           shareWithUser
+        }
+      />
+
+      <MoveModal
+        visible={
+          showMoveModal
+        }
+
+        folders={
+          folders
+        }
+
+        selectedFolder={
+          selectedMoveFolder
+        }
+
+        setSelectedFolder={
+          setSelectedMoveFolder
+        }
+
+        onCancel={() => {
+
+          setShowMoveModal(
+            false
+          );
+
+          setSelectedMoveFolder(
+            null
+          );
+
+          setItemToMove(
+            null
+          );
+        }}
+
+        onConfirm={
+          moveItem
         }
       />
 

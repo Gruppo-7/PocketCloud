@@ -11,6 +11,8 @@ export default function
 
         onPress,
 
+        onMenuPress,
+
         selectionMode,
 
         selectedFolders,
@@ -194,6 +196,11 @@ export default function
             </View>
 
             <TouchableOpacity
+
+                onPress={
+                    onMenuPress
+                }
+
                 style={{
                     position:
                         gridView

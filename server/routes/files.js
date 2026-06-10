@@ -8,6 +8,8 @@ const path = require("path");
 
 const crypto = require("crypto");
 
+const { renameFile } = require("../controllers/renameController");
+
 const storage =
     multer.diskStorage({
 
@@ -58,7 +60,9 @@ const { deleteFile } = require("../controllers/deleteController");
 
 const { downloadFile } = require("../controllers/downloadController");
 
-const { getStorageUsage } = require( "../controllers/storageController" );
+const { getStorageUsage } = require("../controllers/storageController");
+
+const { moveFile } = require("../controllers/moveController");
 
 router.get(
     "/storage/:userId",
@@ -83,6 +87,16 @@ router.post(
 router.get(
     "/download/:fileId",
     downloadFile
+);
+
+router.patch(
+    "/:fileId/rename",
+    renameFile
+);
+
+router.patch(
+    "/:fileId/move",
+    moveFile
 );
 
 router.delete(

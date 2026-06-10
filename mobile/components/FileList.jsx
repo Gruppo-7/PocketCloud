@@ -2,6 +2,7 @@ import { Alert, FlatList, Text, View, TouchableOpacity, Modal, Pressable } from 
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import FolderCard from "./FolderCard";
+import RenameModal from "./RenameModal";
 
 export default function FileList({
     data,
@@ -26,9 +27,24 @@ export default function FileList({
     currentFolder,
     setCurrentFolder,
     folderHistory,
-    setFolderHistory
+    setFolderHistory,
+    onRenameFile,
+    onRenameFolder,
+    folders,
+
+    setItemToMove,
+
+    setShowMoveModal
 }) {
     const [selectedFile, setSelectedFile] = useState(null);
+
+    const [selectedFolder, setSelectedFolder] = useState(null);
+
+    const [fileToRename, setFileToRename] = useState(null);
+
+    const [showRenameModal, setShowRenameModal] = useState(false);
+
+    const [menuType, setMenuType] = useState(null);
 
     function
         handleDelete() {
@@ -171,6 +187,17 @@ ${new Date(
                         );
 
                         setCurrentFolder(
+                            item
+                        );
+                    }}
+
+                    onMenuPress={() => {
+
+                        setMenuType(
+                            "folder"
+                        );
+
+                        setSelectedFolder(
                             item
                         );
                     }}
@@ -363,6 +390,10 @@ ${new Date(
                             return;
                         }
 
+                        setMenuType(
+                            "file"
+                        );
+
                         setSelectedFile(
                             item
                         );
@@ -395,6 +426,11 @@ ${new Date(
             </TouchableOpacity>
         );
     }
+
+    const isFolderMenu =
+        menuType
+        ===
+        "folder";
 
     return (
         <>
@@ -461,26 +497,82 @@ ${new Date(
             />
 
             <Modal
-                visible={selectedFile !== null}
+                visible={
+                    selectedFile !== null
+                    ||
+                    selectedFolder !== null
+                }
                 transparent
                 animationType="fade"
-                onRequestClose={() => setSelectedFile(null)}
+                onRequestClose={() => {
+
+                    setSelectedFile(
+                        null
+                    );
+
+                    setSelectedFolder(
+                        null
+                    );
+
+                    setMenuType(
+                        null
+                    );
+                }}
             >
-                <Pressable
-                    onPress={() => setSelectedFile(null)}
+                <View
                     style={{
                         flex: 1,
-                        backgroundColor: "rgba(0,0,0,0.2)",
-                        justifyContent: "center",
-                        alignItems: "center",
+
+                        backgroundColor:
+                            "rgba(0,0,0,0.25)",
+
+                        justifyContent:
+                            "center",
+
+                        alignItems:
+                            "center",
                     }}
                 >
-                    <View
+                    <TouchableOpacity
+                        activeOpacity={1}
+
+                        onPress={() => {
+
+                            setSelectedFile(
+                                null
+                            );
+
+                            setSelectedFolder(
+                                null
+                            );
+                        }}
+
                         style={{
-                            width: 220,
-                            backgroundColor: "#fff",
-                            borderRadius: 16,
-                            padding: 16,
+                            position:
+                                "absolute",
+
+                            top: 0,
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                        }}
+                    />
+                    <Pressable
+                        style={{
+                            backgroundColor:
+                                "#fff",
+
+                            borderRadius:
+                                24,
+
+                            padding:
+                                20,
+
+                            width:
+                                "82%",
+
+                            maxWidth:
+                                380,
                         }}
                     >
                         <Text
@@ -490,11 +582,39 @@ ${new Date(
                                 fontSize: 16,
                             }}
                         >
-                            {selectedFile?.name}
+                            {selectedFile?.name
+                                ||
+                                selectedFolder?.name}
                         </Text>
 
                         <TouchableOpacity
                             onPress={() => {
+
+                                if (
+                                    isFolderMenu
+                                ) {
+
+                                    setFolderHistory(
+                                        prev => [
+                                            ...prev,
+                                            currentFolder,
+                                        ]
+                                    );
+
+                                    setCurrentFolder(
+                                        selectedFolder
+                                    );
+
+                                    setSelectedFolder(
+                                        null
+                                    );
+
+                                    setSelectedFile(
+                                        null
+                                    );
+
+                                    return;
+                                }
 
                                 const file =
                                     selectedFile;
@@ -509,7 +629,8 @@ ${new Date(
                             }}
 
                             style={{
-                                paddingVertical: 12,
+                                paddingVertical:
+                                    12,
                             }}
                         >
                             <Text
@@ -521,36 +642,46 @@ ${new Date(
                             </Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            onPress={() => {
+                        {
+                            !isFolderMenu && (
 
-                                const file =
-                                    selectedFile;
+                                <TouchableOpacity
+                                    onPress={() => {
 
-                                setSelectedFile(
-                                    null
-                                );
+                                        const file =
+                                            selectedFile;
 
-                                onShareFile?.(
-                                    file
-                                );
-                            }}
+                                        setSelectedFile(
+                                            null
+                                        );
 
-                            style={{
-                                paddingVertical: 12,
-                            }}
-                        >
-                            <Text
-                                style={{
-                                    fontSize: 16,
-                                }}
-                            >
-                                Apri in...
-                            </Text>
-                        </TouchableOpacity>
+                                        onShareFile?.(
+                                            file
+                                        );
+                                    }}
+
+                                    style={{
+                                        paddingVertical:
+                                            12,
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            fontSize:
+                                                16,
+                                        }}
+                                    >
+                                        Apri in...
+                                    </Text>
+                                </TouchableOpacity>
+                            )
+                        }
 
                         {
-                            !sharedMode && (
+                            !sharedMode
+                            &&
+                            !isFolderMenu
+                            && (
 
                                 <TouchableOpacity
                                     onPress={() => {
@@ -585,6 +716,124 @@ ${new Date(
                         <TouchableOpacity
                             onPress={() => {
 
+                                const itemToRename =
+
+                                    selectedFile
+                                    ||
+                                    selectedFolder;
+
+                                setFileToRename(
+                                    itemToRename
+                                );
+
+                                setSelectedFile(
+                                    null
+                                );
+
+                                setSelectedFolder(
+                                    null
+                                );
+
+                                setTimeout(() => {
+
+                                    setShowRenameModal(
+                                        true
+                                    );
+
+                                }, 150);
+                            }}
+
+                            style={{
+                                paddingVertical: 12,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 16,
+                                }}
+                            >
+                                Rinomina
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => {
+
+                                setItemToMove(
+
+                                    selectedFile
+                                    ||
+                                    selectedFolder
+                                );
+
+                                setSelectedFile(
+                                    null
+                                );
+
+                                setSelectedFolder(
+                                    null
+                                );
+
+                                setMenuType(
+                                    null
+                                );
+
+                                setTimeout(() => {
+
+                                    setShowMoveModal(
+                                        true
+                                    );
+
+                                }, 150);
+                            }}
+
+                            style={{
+                                paddingVertical:
+                                    12,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize:
+                                        16,
+                                }}
+                            >
+                                Sposta
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => {
+
+                                if (
+                                    isFolderMenu
+                                ) {
+
+                                    Alert.alert(
+
+                                        "Dettagli cartella",
+
+                                        `Nome:
+${selectedFolder.name}
+
+Creata:
+${new Date(
+                                            selectedFolder.created_at
+                                        ).toLocaleString()}
+
+Modificata:
+${new Date(
+                                            selectedFolder.updated_at
+                                        ).toLocaleString()}`
+                                    );
+
+                                    setSelectedFolder(
+                                        null
+                                    );
+
+                                    return;
+                                }
+
                                 setSelectedFile(
                                     null
                                 );
@@ -606,7 +855,43 @@ ${new Date(
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            onPress={handleDelete}
+                            onPress={() => {
+
+                                if (
+                                    selectedFolder
+                                ) {
+
+                                    setSelectedFolders(
+                                        [
+                                            selectedFolder
+                                        ]
+                                    );
+
+                                    setSelectedFile(
+                                        null
+                                    );
+
+                                    setSelectedFolder(
+                                        null
+                                    );
+
+                                } else {
+
+                                    setSelectedFiles(
+                                        [
+                                            selectedFile
+                                        ]
+                                    );
+
+                                    setSelectedFile(
+                                        null
+                                    );
+                                }
+
+                                setShowDeleteModal(
+                                    true
+                                );
+                            }}
 
                             style={{
                                 paddingVertical: 12,
@@ -625,9 +910,71 @@ ${new Date(
                                 }
                             </Text>
                         </TouchableOpacity>
-                    </View>
-                </Pressable>
+                    </Pressable>
+                </View>
             </Modal >
+            <RenameModal
+                visible={
+                    showRenameModal
+                }
+
+                title={
+                    fileToRename
+                        ?.itemType
+                        === "folder"
+
+                        ? "Rinomina cartella"
+
+                        : "Rinomina file"
+                }
+
+                initialValue={
+                    fileToRename?.name
+                }
+
+                onClose={() => {
+
+                    setShowRenameModal(
+                        false
+                    );
+                }}
+
+                onSave={async (
+                    newName
+                ) => {
+
+                    if (
+                        fileToRename
+                            ?.itemType
+                        === "folder"
+                    ) {
+
+                        await onRenameFolder?.(
+
+                            fileToRename.id,
+
+                            newName
+                        );
+
+                    } else {
+
+                        await onRenameFile?.(
+
+                            fileToRename.id,
+
+                            newName
+                        );
+                    }
+
+                    setShowRenameModal(
+                        false
+                    );
+
+                    setFileToRename(
+                        null
+                    );
+                }}
+            />
         </>
     );
 }

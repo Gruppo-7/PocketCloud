@@ -14,6 +14,10 @@ const {
     "../controllers/foldersController"
 );
 
+const { renameFolder } = require("../controllers/renameFolderController");
+
+const { moveFolder } = require("../controllers/moveController");
+
 router.get(
     "/:userId",
     getFolders
@@ -22,6 +26,16 @@ router.get(
 router.post(
     "/",
     createFolder
+);
+
+router.patch(
+    "/:folderId/rename",
+    renameFolder
+);
+
+router.patch(
+    "/:folderId/move",
+    moveFolder
 );
 
 router.delete(
