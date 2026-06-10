@@ -10,15 +10,18 @@ services:
     restart:
       unless-stopped
 
+    env_file:
+      - ./server/.env
+
     environment:
       POSTGRES_USER:
-        PocketCloud_User
+        ${DB_USER}
 
       POSTGRES_PASSWORD:
-        12345
+        ${DB_PASSWORD}
 
       POSTGRES_DB:
-        PocketCloud
+        ${DB_NAME}
 
     ports:
       - "5432:5432"
@@ -27,6 +30,17 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U PocketCloud_User -d PocketCloud"
+        ]
+
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   server:
 
@@ -46,8 +60,15 @@ services:
       - ./server/.env
 
     depends_on:
-      - postgres
+
+      postgres:
+        condition:
+          service_healthy
+    
+    volumes:
+      - uploads_data:/app/storage
 
 volumes:
 
   postgres_data:
+  uploads_data:

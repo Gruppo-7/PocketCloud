@@ -30,10 +30,10 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
-
+# env files
 .env
+.env.local
+.env*.local
 
 # typescript
 *.tsbuildinfo
@@ -50,3 +50,6 @@ app-example
 #storage
 /server/storage/*
 !/server/storage/.gitkeep
+
+# docker
+docker-data/
