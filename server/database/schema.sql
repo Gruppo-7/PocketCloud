@@ -22,7 +22,10 @@ CREATE TABLE IF NOT EXISTS users (
         NOT NULL,
 
     created_at TIMESTAMP
-        DEFAULT CURRENT_TIMESTAMP
+    DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP
+    DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =========================
@@ -79,18 +82,24 @@ CREATE TABLE IF NOT EXISTS files (
         NOT NULL,
 
     storage_key TEXT
-        NOT NULL,
+        NOT NULL
+        UNIQUE,
 
     size BIGINT
         NOT NULL,
 
-    mime_type VARCHAR(255),
+    mime_type VARCHAR(100),
 
     sha256_fingerprint TEXT,
 
     encryption_iv TEXT,
 
-    algorithm VARCHAR(255),
+    encryption_version INTEGER
+    DEFAULT 1,
+
+    encrypted_file_key TEXT,
+
+    algorithm VARCHAR(50),
 
     created_at TIMESTAMP
         DEFAULT CURRENT_TIMESTAMP,
@@ -98,14 +107,14 @@ CREATE TABLE IF NOT EXISTS files (
     updated_at TIMESTAMP
         DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_owner
+    CONSTRAINT fk_file_owner
         FOREIGN KEY (
             owner_id
         )
         REFERENCES users(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_folder
+    CONSTRAINT fk_file_folder
         FOREIGN KEY (
             folder_id
         )
