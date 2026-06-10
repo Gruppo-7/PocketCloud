@@ -121,7 +121,7 @@ export default function SetupScreen() {
 
                 Alert.alert(
                     "Connessione riuscita",
-                    `Server raggiungibile\nhttp://${serverAddress}:3000`
+                    `Server raggiungibile\nhttp://${serverAddress}`
                 );
 
             } else {

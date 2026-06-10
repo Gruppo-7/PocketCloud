@@ -96,8 +96,17 @@ export default function SettingsScreen() {
     const ipRegex =
       /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 
-    return ipRegex.test(
-      value
+    const hostnameRegex =
+      /^(localhost|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$/;
+
+    return (
+      ipRegex.test(
+        value
+      )
+      ||
+      hostnameRegex.test(
+        value
+      )
     );
   }
 

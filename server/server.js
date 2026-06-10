@@ -4,17 +4,22 @@ const cors = require("cors");
 
 const app = express();
 
+app.set(
+    "trust proxy",
+    true
+);
+
 const PORT = 3000;
 
-const { connectDatabase } = require( "./database/db" );
+const { pool, connectDatabase } = require("./database/db");
 
-const authRoutes = require( "./routes/auth" );
+const authRoutes = require("./routes/auth");
 
-const filesRoutes = require( "./routes/files" );
+const filesRoutes = require("./routes/files");
 
-const sharedRoutes = require(  "./routes/shared" );
+const sharedRoutes = require("./routes/shared");
 
-const foldersRoutes = require( "./routes/folders" );
+const foldersRoutes = require("./routes/folders");
 
 app.use(cors());
 
@@ -22,38 +27,134 @@ app.use(express.json());
 
 app.use("/auth", authRoutes);
 
-app.use( "/files", filesRoutes );
+app.use("/files", filesRoutes);
 
-app.use( "/shared", sharedRoutes );
+app.use("/shared", sharedRoutes);
 
-app.use( "/folders", foldersRoutes );
+app.use("/folders", foldersRoutes);
 
 app.get(
     "/health",
-    (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
-        res.json({
-            status:
-                "online",
+        try {
 
-            name:
-                "PocketCloud Server",
+            const {
+                pool
+            } = require(
+                "./database/db"
+            );
 
-            version:
-                "1.0.0",
-        });
+            await pool.query(
+                "SELECT 1"
+            );
+
+            return res
+                .status(200)
+                .json({
+
+                    status:
+                        "online",
+
+                    database:
+                        "connected",
+
+                    name:
+                        "PocketCloud Server",
+
+                    version:
+                        "1.0.0",
+
+                    uptime:
+                        Math.floor(
+                            process
+                                .uptime()
+                        ),
+
+                    timestamp:
+                        new Date()
+                            .toISOString(),
+                });
+
+        } catch (
+        error
+        ) {
+
+            return res
+                .status(503)
+                .json({
+
+                    status:
+                        "degraded",
+
+                    database:
+                        "disconnected",
+
+                    error:
+                        error.message,
+                });
+        }
     }
 );
 
 app.listen(
-  PORT,
-  async () => {
+    PORT,
+    async () => {
+
+        console.log(
+            `Server running on port ${PORT}`
+        );
+
+        await
+            connectDatabase();
+    }
+);
+
+async function
+    gracefulShutdown(
+        signal
+    ) {
 
     console.log(
-      `Server running on port ${PORT}`
+        `Received ${signal}. Shutting down PocketCloud...`
     );
 
-    await
-      connectDatabase();
-  }
+    try {
+
+        await pool.end();
+
+        console.log(
+            "PostgreSQL pool closed"
+        );
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+            "Error closing database pool:",
+            error.message
+        );
+    }
+
+    process.exit(0);
+}
+
+process.on(
+    "SIGTERM",
+    () =>
+        gracefulShutdown(
+            "SIGTERM"
+        )
+);
+
+process.on(
+    "SIGINT",
+    () =>
+        gracefulShutdown(
+            "SIGINT"
+        )
 );
