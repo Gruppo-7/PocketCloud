@@ -8,5 +8,5 @@ getBaseUrl() {
   const server =
     await getServerAddress();
 
-  return `http://${server}:3000`;
+  return `http://${server}`;
 }

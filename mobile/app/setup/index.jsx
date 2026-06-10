@@ -85,7 +85,7 @@ export default function SetupScreen() {
 
             const response =
                 await fetch(
-                    `http://${serverAddress}:3000/health`,
+                    `http://${serverAddress}/health`,
                     {
                         signal:
                             controller

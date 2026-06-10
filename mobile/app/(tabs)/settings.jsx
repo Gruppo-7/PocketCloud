@@ -152,7 +152,7 @@ export default function SettingsScreen() {
 
       const response =
         await fetch(
-          `http://${address}:3000/health`,
+          `http://${address}/health`,
           {
             signal:
               controller.signal,
