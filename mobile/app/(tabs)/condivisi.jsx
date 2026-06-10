@@ -422,6 +422,89 @@ export default function SharedScreen() {
     );
   }
 
+  async function
+    renameFile(
+      fileId,
+      newName
+    ) {
+
+    try {
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/files/${fileId}/rename`,
+          {
+
+            method:
+              "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+
+                name:
+                  newName,
+
+                userId:
+                  currentUser.id
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      console.log(
+        "Shared rename:",
+        data
+      );
+
+      if (
+        !response.ok
+      ) {
+
+        Alert.alert(
+
+          "Errore",
+
+          data.error
+          ||
+          "Rinomina fallita"
+        );
+
+        return;
+      }
+
+      await reloadFiles();
+
+      Alert.alert(
+        "Rinominato",
+        "File rinominato"
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Rename error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile rinominare file"
+      );
+    }
+  }
+
   return (
     <SafeAreaView
       style={{
@@ -708,6 +791,10 @@ export default function SharedScreen() {
           onOpenFile={openFile}
 
           onShareFile={openInSystem}
+
+          onRenameFile={
+            renameFile
+          }
 
           loading={
             loading

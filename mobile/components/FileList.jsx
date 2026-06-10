@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import FolderCard from "./FolderCard";
 import RenameModal from "./RenameModal";
+import { formatFileSize, formatDate } from "../utils/formatters";
 
 export default function FileList({
     data,
@@ -31,6 +32,7 @@ export default function FileList({
     onRenameFile,
     onRenameFolder,
     folders,
+    files,
 
     setItemToMove,
 
@@ -74,7 +76,69 @@ export default function FileList({
         );
     }
 
-    function handleDetails() {
+    function
+        handleDetails() {
+
+        if (
+            selectedFolder
+        ) {
+
+            const filesCount =
+                files.filter(
+                    file =>
+                        file.folder_id
+                        ===
+                        selectedFolder.id
+                ).length;
+
+            const foldersCount =
+                folders.filter(
+                    folder =>
+                        folder.parent_folder_id
+                        ===
+                        selectedFolder.id
+                ).length;
+
+            const parentFolder =
+                folders.find(
+                    folder =>
+                        folder.id
+                        ===
+                        selectedFolder
+                            .parent_folder_id
+                );
+
+            Alert.alert(
+
+                "Dettagli cartella",
+
+                `Nome:
+${selectedFolder.name}
+
+Posizione:
+${parentFolder
+                    ?.name
+                ?? "Root"}
+
+Contenuto:
+${filesCount} file
+${foldersCount} cartelle
+
+Creata:
+${formatDate(
+                    selectedFolder
+                        .created_at
+                )}
+
+Ultima modifica:
+${formatDate(
+                    selectedFolder
+                        .updated_at
+                )}`
+            );
+
+            return;
+        }
 
         if (
             !selectedFile
@@ -82,25 +146,49 @@ export default function FileList({
             return;
         }
 
-        Alert.alert("Dettagli file",
+        const parentFolder =
+            folders.find(
+                folder =>
+                    folder.id
+                    ===
+                    selectedFile
+                        .folder_id
+            );
+
+        Alert.alert(
+
+            "Dettagli file",
 
             `Nome:
 ${selectedFile.name}
-
-Dimensione:
-${(
-                selectedFile.size
-                / 1024
-            ).toFixed(2)} KB
 
 Tipo:
 ${selectedFile.mime_type
             || "Sconosciuto"}
 
+Dimensione:
+${formatFileSize(
+                Number(
+                    selectedFile.size
+                )
+            )}
+
+Posizione:
+${parentFolder
+                ?.name
+            ?? "Root"}
+
 Creato:
-${new Date(
-                selectedFile.created_at
-            ).toLocaleString()}`
+${formatDate(
+                selectedFile
+                    .created_at
+            )}
+
+Ultima modifica:
+${formatDate(
+                selectedFile
+                    .updated_at
+            )}`
         );
     }
 
@@ -144,6 +232,13 @@ ${new Date(
     }
 
     function renderItem({ item }) {
+
+        const canWrite =
+            !sharedMode
+            ||
+            item.permission
+            ===
+            "write";
 
         if (
             item.itemType
@@ -432,6 +527,13 @@ ${new Date(
         ===
         "folder";
 
+    const canWriteSelected =
+        !sharedMode
+        ||
+        selectedFile?.permission
+        ===
+        "write";
+
     return (
         <>
 
@@ -713,58 +815,141 @@ ${new Date(
                             )
                         }
 
+                        {
+                            !isFolderMenu
+                            &&
+                            canWriteSelected
+                            && (
+
+                                <TouchableOpacity
+                                    onPress={() => {
+
+                                        Alert.alert(
+                                            "Presto disponibile",
+                                            "Aggiornamento file in sviluppo"
+                                        );
+                                    }}
+
+                                    style={{
+                                        paddingVertical:
+                                            12,
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            fontSize:
+                                                16,
+                                        }}
+                                    >
+                                        Aggiorna file
+                                    </Text>
+                                </TouchableOpacity>
+                            )
+                        }
+
+                        {
+                            canWriteSelected && (
+
+                                <TouchableOpacity
+                                    onPress={() => {
+
+                                        const itemToRename =
+
+                                            selectedFile
+                                            ||
+                                            selectedFolder;
+
+                                        setFileToRename(
+                                            itemToRename
+                                        );
+
+                                        setSelectedFile(
+                                            null
+                                        );
+
+                                        setSelectedFolder(
+                                            null
+                                        );
+
+                                        setTimeout(() => {
+
+                                            setShowRenameModal(
+                                                true
+                                            );
+
+                                        }, 150);
+                                    }}
+
+                                    style={{
+                                        paddingVertical: 12,
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            fontSize: 16,
+                                        }}
+                                    >
+                                        Rinomina
+                                    </Text>
+                                </TouchableOpacity>
+                            )
+                        }
+
+                        {
+                            !sharedMode && (
+
+                                <TouchableOpacity
+                                    onPress={() => {
+
+                                        setItemToMove(
+
+                                            selectedFile
+                                            ||
+                                            selectedFolder
+                                        );
+
+                                        setSelectedFile(
+                                            null
+                                        );
+
+                                        setSelectedFolder(
+                                            null
+                                        );
+
+                                        setMenuType(
+                                            null
+                                        );
+
+                                        setTimeout(() => {
+
+                                            setShowMoveModal(
+                                                true
+                                            );
+
+                                        }, 150);
+                                    }}
+
+                                    style={{
+                                        paddingVertical:
+                                            12,
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            fontSize:
+                                                16,
+                                        }}
+                                    >
+                                        Sposta
+                                    </Text>
+                                </TouchableOpacity>
+                            )
+                        }
+
                         <TouchableOpacity
                             onPress={() => {
 
-                                const itemToRename =
-
-                                    selectedFile
-                                    ||
-                                    selectedFolder;
-
-                                setFileToRename(
-                                    itemToRename
-                                );
-
-                                setSelectedFile(
-                                    null
-                                );
-
-                                setSelectedFolder(
-                                    null
-                                );
-
-                                setTimeout(() => {
-
-                                    setShowRenameModal(
-                                        true
-                                    );
-
-                                }, 150);
-                            }}
-
-                            style={{
-                                paddingVertical: 12,
-                            }}
-                        >
-                            <Text
-                                style={{
-                                    fontSize: 16,
-                                }}
-                            >
-                                Rinomina
-                            </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={() => {
-
-                                setItemToMove(
-
-                                    selectedFile
-                                    ||
-                                    selectedFolder
-                                );
+                                handleDetails();
 
                                 setSelectedFile(
                                     null
@@ -777,68 +962,6 @@ ${new Date(
                                 setMenuType(
                                     null
                                 );
-
-                                setTimeout(() => {
-
-                                    setShowMoveModal(
-                                        true
-                                    );
-
-                                }, 150);
-                            }}
-
-                            style={{
-                                paddingVertical:
-                                    12,
-                            }}
-                        >
-                            <Text
-                                style={{
-                                    fontSize:
-                                        16,
-                                }}
-                            >
-                                Sposta
-                            </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={() => {
-
-                                if (
-                                    isFolderMenu
-                                ) {
-
-                                    Alert.alert(
-
-                                        "Dettagli cartella",
-
-                                        `Nome:
-${selectedFolder.name}
-
-Creata:
-${new Date(
-                                            selectedFolder.created_at
-                                        ).toLocaleString()}
-
-Modificata:
-${new Date(
-                                            selectedFolder.updated_at
-                                        ).toLocaleString()}`
-                                    );
-
-                                    setSelectedFolder(
-                                        null
-                                    );
-
-                                    return;
-                                }
-
-                                setSelectedFile(
-                                    null
-                                );
-
-                                handleDetails();
                             }}
 
                             style={{

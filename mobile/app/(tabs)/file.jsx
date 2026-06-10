@@ -907,6 +907,9 @@ export default function FilesScreen() {
 
     try {
 
+      const user =
+        await getCurrentUser();
+
       const baseUrl =
         await getBaseUrl();
 
@@ -925,8 +928,12 @@ export default function FilesScreen() {
 
             body:
               JSON.stringify({
+
                 name:
                   newName,
+
+                userId:
+                  user.id
               }),
           }
         );
@@ -1121,6 +1128,9 @@ export default function FilesScreen() {
 
     try {
 
+      const user =
+        await getCurrentUser();
+
       const baseUrl =
         await getBaseUrl();
 
@@ -1146,6 +1156,9 @@ export default function FilesScreen() {
                 username,
 
                 permission,
+
+                userId:
+                  user.id
               }),
           }
         );
@@ -1825,6 +1838,10 @@ ${username}`
 
           folders={
             folders
+          }
+
+          files={
+            files
           }
 
           setItemToMove={

@@ -4,11 +4,17 @@ const {
     "../database/db"
 );
 
+const {
+    canModifyFile
+} = require(
+    "../utils/permissions"
+);
+
 async function
-renameFile(
-    req,
-    res
-) {
+    renameFile(
+        req,
+        res
+    ) {
 
     try {
 
@@ -17,8 +23,28 @@ renameFile(
         } = req.params;
 
         const {
-            name
+            name,
+            userId
         } = req.body;
+
+        const permission =
+            await canModifyFile(
+                userId,
+                fileId
+            );
+
+        if (
+            !permission
+                .allowed
+        ) {
+
+            return res
+                .status(403)
+                .json({
+                    error:
+                        "Permesso negato"
+                });
+        }
 
         if (
             !name
@@ -161,5 +187,5 @@ renameFile(
 }
 
 module.exports = {
-    renameFile,
+    renameFile
 };

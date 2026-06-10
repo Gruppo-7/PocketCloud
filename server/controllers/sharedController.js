@@ -4,6 +4,12 @@ const {
     "../database/db"
 );
 
+const {
+    isOwner
+} = require(
+    "../utils/permissions"
+);
+
 async function
     getSharedFiles(
         req,
@@ -97,6 +103,8 @@ async function
 
             permission,
 
+            userId
+
         } = req.body;
 
         if (
@@ -112,6 +120,24 @@ async function
                 .json({
                     error:
                         "Missing fields"
+                });
+        }
+
+        const owner =
+            await isOwner(
+                userId,
+                file_id
+            );
+
+        if (
+            !owner
+        ) {
+
+            return res
+                .status(403)
+                .json({
+                    error:
+                        "Solo il proprietario può condividere"
                 });
         }
 
