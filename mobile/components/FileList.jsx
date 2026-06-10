@@ -574,7 +574,10 @@ ${formatDate(
                 key={gridView ? "grid" : "list"}
                 data={data}
                 numColumns={gridView ? 2 : 1}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) =>
+
+                    `${item.itemType}-${item.id}`
+                }
                 columnWrapperStyle={
                     gridView
                         ? { justifyContent: "space-between" }
