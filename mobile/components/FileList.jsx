@@ -1,4 +1,4 @@
-import { Alert, FlatList, Text, View, TouchableOpacity, Modal, Pressable } from "react-native";
+import { Alert, FlatList, Text, View, TouchableOpacity, Modal, Pressable, InteractionManager } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import FolderCard from "./FolderCard";
@@ -30,6 +30,7 @@ export default function FileList({
     folderHistory,
     setFolderHistory,
     onRenameFile,
+    onReplaceFile,
     onRenameFolder,
     folders,
     files,
@@ -100,12 +101,15 @@ export default function FileList({
                 ).length;
 
             const parentFolder =
-                folders.find(
+                (
+                    folders
+                    || []
+                ).find(
                     folder =>
                         folder.id
                         ===
-                        selectedFolder
-                            .parent_folder_id
+                        selectedFile
+                            .folder_id
                 );
 
             Alert.alert(
@@ -147,7 +151,10 @@ ${formatDate(
         }
 
         const parentFolder =
-            folders.find(
+            (
+                folders
+                || []
+            ).find(
                 folder =>
                     folder.id
                     ===
@@ -592,6 +599,7 @@ ${formatDate(
                 }
                 contentContainerStyle={{
                     paddingBottom: 30,
+                    flexGrow: 1
                 }}
                 renderItem={renderItem}
                 ListEmptyComponent={
@@ -827,9 +835,30 @@ ${formatDate(
                                 <TouchableOpacity
                                     onPress={() => {
 
-                                        Alert.alert(
-                                            "Presto disponibile",
-                                            "Aggiornamento file in sviluppo"
+                                        const file =
+                                            selectedFile;
+
+                                        setSelectedFile(
+                                            null
+                                        );
+
+                                        setSelectedFolder(
+                                            null
+                                        );
+
+                                        setMenuType(
+                                            null
+                                        );
+
+                                        setTimeout(
+                                            () => {
+
+                                                onReplaceFile?.(
+                                                    file
+                                                );
+
+                                            },
+                                            500
                                         );
                                     }}
 
@@ -1014,9 +1043,20 @@ ${formatDate(
                                     );
                                 }
 
-                                setShowDeleteModal(
-                                    true
-                                );
+                                if (
+                                    setShowDeleteModal
+                                ) {
+
+                                    setShowDeleteModal(
+                                        true
+                                    );
+
+                                } else {
+
+                                    onDeleteFile?.(
+                                        selectedFile?.id
+                                    );
+                                }
                             }}
 
                             style={{

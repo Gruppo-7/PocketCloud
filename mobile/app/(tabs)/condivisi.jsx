@@ -20,6 +20,9 @@ import { getBaseUrl } from "../../utils/api";
 import { openFile, openInSystem } from "../../utils/fileActions";
 import { uploadDocument } from "../../utils/uploadActions";
 import ShareFileModal from "../../components/ShareFileModal";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Crypto from "expo-crypto";
 
 async function
   shareWithUser({
@@ -32,6 +35,8 @@ async function
   }) {
 
   try {
+    const user =
+      await getCurrentUser();
 
     const baseUrl =
       await getBaseUrl();
@@ -58,6 +63,9 @@ async function
               username,
 
               permission,
+
+              userId:
+                user.id,
             }),
         }
       );
@@ -90,17 +98,7 @@ condiviso con
 ${username}`
     );
 
-    setPendingUploadedFile(
-      null
-    );
-
-    setShowShareModal(
-      false
-    );
-
-    setFileToShare(
-      null
-    );
+    return true;
 
   } catch (
   error
@@ -420,6 +418,188 @@ export default function SharedScreen() {
     setShowDeleteModal(
       false
     );
+  }
+
+  async function
+    generateFileHash(
+      uri
+    ) {
+
+    try {
+
+      const fileContent =
+        await FileSystem
+          .readAsStringAsync(
+            uri,
+            {
+              encoding:
+                FileSystem
+                  .EncodingType
+                  .Base64,
+            }
+          );
+
+      const hash =
+        await Crypto
+          .digestStringAsync(
+
+            Crypto
+              .CryptoDigestAlgorithm
+              .SHA256,
+
+            fileContent
+          );
+
+      return hash;
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Hash error:",
+        error
+      );
+
+      throw error;
+    }
+  }
+
+  async function
+    pickSingleFile() {
+
+    const result =
+      await DocumentPicker
+        .getDocumentAsync({
+
+          multiple:
+            false,
+
+          copyToCacheDirectory:
+            true,
+        });
+
+    if (
+      result.canceled
+    ) {
+
+      return null;
+    }
+
+    return result
+      .assets[0];
+  }
+
+  async function
+    replaceFile(
+      fileToReplace
+    ) {
+
+    try {
+
+      const user =
+        await getCurrentUser();
+
+      await new Promise(
+        resolve =>
+          setTimeout(
+            resolve,
+            200
+          )
+      );
+
+      const selectedFile =
+        await pickSingleFile();
+
+      if (
+        !selectedFile
+      ) {
+
+        return;
+      }
+
+      const fileHash =
+        await generateFileHash(
+          selectedFile.uri
+        );
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        "file",
+        {
+          uri:
+            selectedFile.uri,
+
+          name:
+            selectedFile.name,
+
+          type:
+            selectedFile.mimeType
+            ||
+            "application/octet-stream",
+        }
+      );
+
+      formData.append(
+        "userId",
+        user.id
+      );
+
+      formData.append(
+        "sha256_fingerprint",
+        fileHash
+      );
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/files/${fileToReplace.id}/replace`,
+          {
+            method:
+              "PATCH",
+            body:
+              formData,
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
+        );
+      }
+
+      await reloadFiles();
+
+      Alert.alert(
+        "File aggiornato",
+        selectedFile.name
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Replace error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Aggiornamento file fallito"
+      );
+
+    }
   }
 
   async function
@@ -794,6 +974,10 @@ export default function SharedScreen() {
 
           onRenameFile={
             renameFile
+          }
+
+          onReplaceFile={
+            replaceFile
           }
 
           loading={
@@ -1219,7 +1403,32 @@ ${(
         }
 
         onShare={
-          shareWithUser
+          async (
+            payload
+          ) => {
+
+            const success =
+              await shareWithUser(
+                payload
+              );
+
+            if (
+              success
+            ) {
+
+              setPendingUploadedFile(
+                null
+              );
+
+              setShowShareModal(
+                false
+              );
+
+              setFileToShare(
+                null
+              );
+            }
+          }
         }
       />
 

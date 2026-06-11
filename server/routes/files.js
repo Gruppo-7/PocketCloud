@@ -10,6 +10,8 @@ const crypto = require("crypto");
 
 const { renameFile } = require("../controllers/renameController");
 
+const { replaceFile } = require("../controllers/replaceController");
+
 const storage =
     multer.diskStorage({
 
@@ -97,6 +99,16 @@ router.patch(
 router.patch(
     "/:fileId/move",
     moveFile
+);
+
+router.patch(
+    "/:fileId/replace",
+
+    upload.single(
+        "file"
+    ),
+
+    replaceFile
 );
 
 router.delete(

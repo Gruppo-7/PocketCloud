@@ -26,6 +26,8 @@ import { openFile, openInSystem } from "../../utils/fileActions";
 import * as Crypto from "expo-crypto";
 import * as DocumentPicker from "expo-document-picker";
 import MoveModal from "../../components/MoveModal";
+import { useFocusEffect } from "@react-navigation/native";
+import React from "react";
 
 export default function FilesScreen() {
 
@@ -191,28 +193,44 @@ export default function FilesScreen() {
     }
   }
 
+  async function
+    pickSingleFile() {
+
+    const result =
+      await DocumentPicker
+        .getDocumentAsync({
+
+          multiple:
+            false,
+
+          copyToCacheDirectory:
+            true,
+        });
+
+    if (
+      result.canceled
+    ) {
+
+      return null;
+    }
+
+    return result
+      .assets[0];
+  }
+
   async function pickDocument() {
 
     try {
 
-      const result =
-        await DocumentPicker
-          .getDocumentAsync({
-
-            multiple:
-              false,
-
-            copyToCacheDirectory:
-              true,
-          });
+      const file =
+        await pickSingleFile();
 
       if (
-        result.canceled
+        !file
       ) {
+
         return;
       }
-
-      const file = result.assets[0];
 
       const fileHash =
         await generateFileHash(
@@ -900,6 +918,118 @@ export default function FilesScreen() {
   }
 
   async function
+    replaceFile(
+      fileToReplace
+    ) {
+
+    try {
+
+      const user =
+        await getCurrentUser();
+
+      await new Promise(
+        resolve =>
+          setTimeout(
+            resolve,
+            200
+          )
+      );
+
+      const selectedFile =
+        await pickSingleFile();
+
+      if (
+        !selectedFile
+      ) {
+
+        return;
+      }
+
+      const fileHash =
+        await generateFileHash(
+          selectedFile.uri
+        );
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        "file",
+        {
+          uri:
+            selectedFile.uri,
+
+          name:
+            selectedFile.name,
+
+          type:
+            selectedFile.mimeType
+            ||
+            "application/octet-stream",
+        }
+      );
+
+      formData.append(
+        "userId",
+        user.id
+      );
+
+      formData.append(
+        "sha256_fingerprint",
+        fileHash
+      );
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/files/${fileToReplace.id}/replace`,
+          {
+            method:
+              "PATCH",
+            body:
+              formData,
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
+        );
+      }
+
+      await reloadFiles();
+
+      Alert.alert(
+        "File aggiornato",
+        selectedFile.name
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Replace error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Aggiornamento file fallito"
+      );
+
+    }
+  }
+
+  async function
     renameFile(
       fileId,
       newName
@@ -1354,6 +1484,19 @@ ${username}`
       ),
     ];
 
+  useFocusEffect(
+    React.useCallback(
+      () => {
+
+        reloadFiles();
+        reloadFolders();
+
+      },
+
+      []
+    )
+  );
+
   useEffect(() => {
 
     const totalSelected =
@@ -1798,6 +1941,10 @@ ${username}`
 
           onRenameFile={
             renameFile
+          }
+
+          onReplaceFile={
+            replaceFile
           }
 
           onRenameFolder={
