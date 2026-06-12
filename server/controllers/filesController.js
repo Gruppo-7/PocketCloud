@@ -13,11 +13,6 @@ async function
             userId
         } = req.params;
 
-        console.log(
-            "Get files for user:",
-            userId
-        );
-
         const result =
             await pool.query(
                 `

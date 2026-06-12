@@ -61,11 +61,6 @@ export default function
             const data =
                 await response.json();
 
-            console.log(
-                `${endpoint} loaded:`,
-                data
-            );
-
             setFiles(
                 Array.isArray(
                     data

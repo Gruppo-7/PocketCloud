@@ -10,6 +10,9 @@ import { getCurrentUser }
 import { getBaseUrl }
     from "./api";
 
+import * as FileSystem
+    from "expo-file-system/legacy";
+
 export async function
     uploadDocument({
 
@@ -19,6 +22,10 @@ export async function
         reloadFiles,
 
         onUploadSuccess,
+
+        setIsUploading,
+
+        setUploadProgress,
     }) {
 
     try {
@@ -46,57 +53,113 @@ export async function
         const user =
             await getCurrentUser();
 
-        const formData =
-            new FormData();
-
-        formData.append(
-            "file",
-            {
-
-                uri:
-                    file.uri,
-
-                name:
-                    file.name,
-
-                type:
-                    file.mimeType
-                    ||
-                    "application/octet-stream",
-            }
-        );
-
-        formData.append(
-            "owner_id",
-            user.id
-        );
-
-        formData.append(
-            "folder_id",
-            currentFolder
-                ?.id
-            ?? ""
-        );
-
         const baseUrl =
             await getBaseUrl();
 
-        const response =
-            await fetch(
-                `${baseUrl}/files/upload`,
-                {
+        setIsUploading?.(
+            true
+        );
 
-                    method:
-                        "POST",
+        setUploadProgress?.(
+            0
+        );
 
-                    body:
-                        formData,
-                }
-            );
+        const uploadTask =
+            FileSystem
+                .createUploadTask(
+                    `${baseUrl}/files/upload`,
+
+                    file.uri,
+
+                    {
+
+                        httpMethod:
+                            "POST",
+
+                        uploadType:
+                            FileSystem
+                                .FileSystemUploadType
+                                .MULTIPART,
+
+                        fieldName:
+                            "file",
+
+                        mimeType:
+                            file.mimeType
+                            ||
+                            "application/octet-stream",
+
+                        headers:
+                        {
+                            "x-file-name":
+                                encodeURIComponent(
+                                    file.name
+                                ),
+                        },
+
+                        parameters:
+                        {
+
+                            owner_id:
+                                String(
+                                    user.id
+                                ),
+
+                            folder_id:
+                                String(
+                                    currentFolder
+                                        ?.id
+                                    ?? ""
+                                ),
+                        },
+                    },
+
+                    (
+                        progress
+                    ) => {
+
+                        const percent =
+                            Math.round(
+                                (
+                                    progress
+                                        .totalBytesSent
+                                    /
+                                    progress
+                                        .totalBytesExpectedToSend
+                                )
+                                * 100
+                            );
+
+                        setUploadProgress?.(
+                            percent
+                        );
+                    }
+                );
+
+        const uploadResult =
+            await uploadTask
+                .uploadAsync();
+
+        const response = {
+            ok:
+                uploadResult
+                    .status
+                >= 200
+                &&
+                uploadResult
+                    .status
+                < 300,
+
+            status:
+                uploadResult
+                    .status
+        };
 
         const data =
-            await response
-                .json();
+            JSON.parse(
+                uploadResult
+                    .body
+            );
 
         if (
             !response.ok
@@ -132,6 +195,22 @@ export async function
         Alert.alert(
             "Errore",
             "Upload fallito"
+        );
+    } finally {
+
+        setTimeout(
+            () => {
+
+                setUploadProgress?.(
+                    null
+                );
+
+                setIsUploading?.(
+                    false
+                );
+            },
+
+            500
         );
     }
 }

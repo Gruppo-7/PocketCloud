@@ -97,8 +97,14 @@ async function uploadFile(
         const { owner_id, folder_id, conflict_strategy, sha256_fingerprint } = req.body;
 
         let fileName =
-            req.file
-                .originalname;
+            decodeURIComponent(
+                req.headers[
+                "x-file-name"
+                ]
+                ||
+                req.file
+                    .originalname
+            );
 
         const existingFile =
             await pool.query(

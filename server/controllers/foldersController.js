@@ -27,11 +27,6 @@ async function
         } =
             req.params;
 
-        console.log(
-            "Get folders for user:",
-            userId
-        );
-
         const result =
             await pool.query(
                 `

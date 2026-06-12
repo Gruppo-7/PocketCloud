@@ -89,11 +89,6 @@ useFolders() {
             const data =
                 await response.json();
 
-            console.log(
-                "Folders loaded:",
-                data
-            );
-
             setFolders(
                 data
             );

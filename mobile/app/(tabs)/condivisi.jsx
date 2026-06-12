@@ -175,6 +175,10 @@ export default function SharedScreen() {
 
   const [pendingUploadedFile, setPendingUploadedFile] = useState(null);
 
+  const [uploadProgress, setUploadProgress] = useState(null);
+
+  const [isUploading, setIsUploading] = useState(false);
+
   const deleteFile = (fileId) => {
     setSharedFiles(
       (prevFiles) =>
@@ -1030,6 +1034,10 @@ export default function SharedScreen() {
 
                             reloadFiles:
                               reloadMyFiles,
+
+                            setIsUploading,
+
+                            setUploadProgress,
                           });
 
                         if (
@@ -1431,6 +1439,122 @@ ${(
           }
         }
       />
+
+      {
+        isUploading
+        && (
+
+          <View
+            style={{
+              position:
+                "absolute",
+
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+
+              backgroundColor:
+                "rgba(0,0,0,0.45)",
+
+              justifyContent:
+                "center",
+
+              alignItems:
+                "center",
+
+              zIndex:
+                999,
+            }}
+          >
+
+            <View
+              style={{
+                width:
+                  "80%",
+
+                backgroundColor:
+                  "white",
+
+                borderRadius:
+                  16,
+
+                padding:
+                  24,
+
+                alignItems:
+                  "center",
+              }}
+            >
+
+              <Text
+                style={{
+                  fontSize:
+                    18,
+
+                  fontWeight:
+                    "600",
+
+                  marginBottom:
+                    16,
+                }}
+              >
+                Caricamento file...
+              </Text>
+
+              <View
+                style={{
+                  width:
+                    "100%",
+
+                  height:
+                    10,
+
+                  backgroundColor:
+                    "#E5E5E5",
+
+                  borderRadius:
+                    999,
+
+                  overflow:
+                    "hidden",
+                }}
+              >
+
+                <View
+                  style={{
+                    width:
+                      `${uploadProgress ?? 0}%`,
+
+                    height:
+                      "100%",
+
+                    backgroundColor:
+                      "#007AFF",
+                  }}
+                />
+              </View>
+
+              <Text
+                style={{
+                  marginTop:
+                    12,
+
+                  fontSize:
+                    16,
+                }}
+              >
+                {
+                  uploadProgress
+                }
+                %
+              </Text>
+
+            </View>
+
+          </View>
+        )
+      }
 
     </SafeAreaView >
   );

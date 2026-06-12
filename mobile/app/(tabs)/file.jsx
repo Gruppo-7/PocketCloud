@@ -59,6 +59,8 @@ export default function FilesScreen() {
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [selectedMoveFolder, setSelectedMoveFolder] = useState(null);
   const [itemToMove, setItemToMove] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   async function
     uploadFile(
@@ -67,85 +69,203 @@ export default function FilesScreen() {
       fileHash
     ) {
 
-    const user =
-      await getCurrentUser();
+    try {
 
-    const formData =
-      new FormData();
+      const user =
+        await getCurrentUser();
 
-    formData.append(
-      "file",
-      {
-
-        uri:
-          file.uri,
-
-        name:
-          file.name,
-
-        type:
-          file.mimeType
-          ||
-          "application/octet-stream",
-      }
-    );
-
-    formData.append(
-      "owner_id",
-      user.id
-    );
-
-    formData.append(
-      "folder_id",
-      currentFolder
-        ?.id
-      ?? ""
-    );
-
-    formData.append(
-      "sha256_fingerprint",
-      fileHash
-    );
-
-    if (
-      conflictStrategy
-    ) {
+      const formData =
+        new FormData();
 
       formData.append(
-        "conflict_strategy",
-        conflictStrategy
-      );
-    }
-
-    const baseUrl =
-      await getBaseUrl();
-
-    const response =
-      await fetch(
-        `${baseUrl}/files/upload`,
+        "file",
         {
 
-          method:
-            "POST",
+          uri:
+            file.uri,
 
-          body:
-            formData,
+          name:
+            file.name,
+
+          type:
+            file.mimeType
+            ||
+            "application/octet-stream",
         }
       );
 
-    const data =
-      await response
-        .json();
+      formData.append(
+        "owner_id",
+        user.id
+      );
 
-    console.log(
-      "Upload response:",
-      data
-    );
+      formData.append(
+        "folder_id",
+        currentFolder
+          ?.id
+        ?? ""
+      );
 
-    return {
-      response,
-      data
-    };
+      formData.append(
+        "sha256_fingerprint",
+        fileHash
+      );
+
+      if (
+        conflictStrategy
+      ) {
+
+        formData.append(
+          "conflict_strategy",
+          conflictStrategy
+        );
+      }
+
+      const baseUrl =
+        await getBaseUrl();
+
+      setIsUploading(
+        true
+      );
+
+      setUploadProgress(
+        0
+      );
+
+      const subscription =
+        FileSystem
+          .createUploadTask(
+            `${baseUrl}/files/upload`,
+
+            file.uri,
+
+            {
+
+              httpMethod:
+                "POST",
+
+              uploadType:
+                FileSystem
+                  .FileSystemUploadType
+                  .MULTIPART,
+
+              fieldName:
+                "file",
+
+              mimeType:
+                file.mimeType
+                ||
+                "application/octet-stream",
+
+
+              headers:
+              {
+                "x-file-name":
+                  encodeURIComponent(
+                    file.name
+                  ),
+              },
+
+              parameters:
+              {
+
+                owner_id:
+                  String(
+                    user.id
+                  ),
+
+                folder_id:
+                  String(
+                    currentFolder
+                      ?.id
+                    ?? ""
+                  ),
+
+                sha256_fingerprint:
+                  fileHash,
+
+                ...(conflictStrategy
+                  ? {
+                    conflict_strategy:
+                      conflictStrategy
+                  }
+                  : {}),
+              },
+            },
+
+            (
+              progress
+            ) => {
+
+              const percent =
+                Math.round(
+                  (
+                    progress
+                      .totalBytesSent
+                    /
+                    progress
+                      .totalBytesExpectedToSend
+                  )
+                  * 100
+                );
+
+              setUploadProgress(
+                percent
+              );
+            }
+          );
+
+      const uploadResult =
+        await subscription
+          .uploadAsync();
+
+      const response = {
+        ok:
+          uploadResult
+            .status
+          >= 200
+          &&
+          uploadResult
+            .status
+          < 300,
+
+        status:
+          uploadResult
+            .status
+      };
+
+      const data =
+        JSON.parse(
+          uploadResult
+            .body
+        );
+
+      console.log(
+        "Upload response:",
+        data
+      );
+
+      return {
+        response,
+        data
+      };
+    } finally {
+
+      setTimeout(
+        () => {
+
+          setUploadProgress(
+            null
+          );
+
+          setIsUploading(
+            false
+          );
+        },
+
+        500
+      );
+    }
   }
 
   async function
@@ -950,51 +1070,109 @@ export default function FilesScreen() {
           selectedFile.uri
         );
 
-      const formData =
-        new FormData();
-
-      formData.append(
-        "file",
-        {
-          uri:
-            selectedFile.uri,
-
-          name:
-            selectedFile.name,
-
-          type:
-            selectedFile.mimeType
-            ||
-            "application/octet-stream",
-        }
-      );
-
-      formData.append(
-        "userId",
-        user.id
-      );
-
-      formData.append(
-        "sha256_fingerprint",
-        fileHash
-      );
-
       const baseUrl =
         await getBaseUrl();
 
-      const response =
-        await fetch(
-          `${baseUrl}/files/${fileToReplace.id}/replace`,
-          {
-            method:
-              "PATCH",
-            body:
-              formData,
-          }
-        );
+      setIsUploading(
+        true
+      );
+
+      setUploadProgress(
+        0
+      );
+
+      const uploadTask =
+        FileSystem
+          .createUploadTask(
+            `${baseUrl}/files/${fileToReplace.id}/replace`,
+
+            selectedFile.uri,
+
+            {
+
+              httpMethod:
+                "PATCH",
+
+              uploadType:
+                FileSystem
+                  .FileSystemUploadType
+                  .MULTIPART,
+
+              fieldName:
+                "file",
+
+              mimeType:
+                selectedFile.mimeType
+                ||
+                "application/octet-stream",
+
+              headers:
+              {
+                "x-file-name":
+                  encodeURIComponent(
+                    selectedFile.name
+                  ),
+              },
+
+              parameters:
+              {
+
+                userId:
+                  String(
+                    user.id
+                  ),
+
+                sha256_fingerprint:
+                  fileHash,
+              },
+            },
+
+            (
+              progress
+            ) => {
+
+              const percent =
+                Math.round(
+                  (
+                    progress
+                      .totalBytesSent
+                    /
+                    progress
+                      .totalBytesExpectedToSend
+                  )
+                  * 100
+                );
+
+              setUploadProgress(
+                percent
+              );
+            }
+          );
+
+      const uploadResult =
+        await uploadTask
+          .uploadAsync();
+
+      const response = {
+        ok:
+          uploadResult
+            .status
+          >= 200
+          &&
+          uploadResult
+            .status
+          < 300,
+
+        status:
+          uploadResult
+            .status
+      };
 
       const data =
-        await response.json();
+        JSON.parse(
+          uploadResult
+            .body
+        );
 
       if (
         !response.ok
@@ -1026,6 +1204,22 @@ export default function FilesScreen() {
         "Aggiornamento file fallito"
       );
 
+    } finally {
+
+      setTimeout(
+        () => {
+
+          setUploadProgress(
+            null
+          );
+
+          setIsUploading(
+            false
+          );
+        },
+
+        500
+      );
     }
   }
 
@@ -1485,15 +1679,20 @@ ${username}`
     ];
 
   useFocusEffect(
+
     React.useCallback(
       () => {
 
         reloadFiles();
+
         reloadFolders();
 
       },
 
-      []
+      [
+        reloadFiles,
+        reloadFolders
+      ]
     )
   );
 
@@ -2341,6 +2540,122 @@ ${(
           moveItem
         }
       />
+
+      {
+        isUploading
+        && (
+
+          <View
+            style={{
+              position:
+                "absolute",
+
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+
+              backgroundColor:
+                "rgba(0,0,0,0.45)",
+
+              justifyContent:
+                "center",
+
+              alignItems:
+                "center",
+
+              zIndex:
+                999,
+            }}
+          >
+
+            <View
+              style={{
+                width:
+                  "80%",
+
+                backgroundColor:
+                  "white",
+
+                borderRadius:
+                  16,
+
+                padding:
+                  24,
+
+                alignItems:
+                  "center",
+              }}
+            >
+
+              <Text
+                style={{
+                  fontSize:
+                    18,
+
+                  fontWeight:
+                    "600",
+
+                  marginBottom:
+                    16,
+                }}
+              >
+                Caricamento file...
+              </Text>
+
+              <View
+                style={{
+                  width:
+                    "100%",
+
+                  height:
+                    10,
+
+                  backgroundColor:
+                    "#E5E5E5",
+
+                  borderRadius:
+                    999,
+
+                  overflow:
+                    "hidden",
+                }}
+              >
+
+                <View
+                  style={{
+                    width:
+                      `${uploadProgress ?? 0}%`,
+
+                    height:
+                      "100%",
+
+                    backgroundColor:
+                      "#007AFF",
+                  }}
+                />
+              </View>
+
+              <Text
+                style={{
+                  marginTop:
+                    12,
+
+                  fontSize:
+                    16,
+                }}
+              >
+                {
+                  uploadProgress
+                }
+                %
+              </Text>
+
+            </View>
+
+          </View>
+        )
+      }
 
     </SafeAreaView>
   );

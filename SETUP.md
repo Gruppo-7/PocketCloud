@@ -138,12 +138,6 @@ pocketcloud-nginx
 
 Find your local IP address.
 
-### macOS
-
-```bash
-ipconfig getifaddr en0
-```
-
 Example:
 
 ```text
