@@ -25,9 +25,12 @@ PocketCloud uses a Dockerized architecture:
 PocketCloud/
 ├── mobile/
 ├── server/
+│   ├── controllers/
+│   ├── routes/
+│   ├── database/
+│   │   └── schema.sql
+│   └── utils/
 ├── docker/
-│   ├── postgres/
-│   │   └── init.sql
 │   └── nginx/
 │       └── nginx.conf
 ├── docker-compose.yml
@@ -120,7 +123,8 @@ docker compose up --build
 On first startup Docker will:
 
 * Create PostgreSQL container
-* Initialize database schema
+* Initialize PostgreSQL schema
+(including encryption-ready user metadata)
 * Start Node server
 * Start Nginx reverse proxy
 
@@ -215,6 +219,8 @@ Persistent data:
 
 * PostgreSQL database
 * Uploaded files
+* Encrypted file metadata
+* Sharing metadata
 
 Data survives:
 
@@ -270,6 +276,26 @@ docker compose logs pocketcloud-server
 
 ## Notes
 
-PocketCloud currently runs locally over HTTP.
+PocketCloud currently runs locally over HTTP inside trusted LAN environments.
 
-HTTPS and remote access support are prepared and planned for future phases.
+Optional client-side encryption is already supported for sensitive files.
+
+## Security
+
+PocketCloud supports optional client-side encryption.
+
+Encrypted files:
+
+* are encrypted locally on-device
+* use AES-256-CBC encryption
+* never expose plaintext to the server
+* remain encrypted at rest
+
+Master key security:
+
+* derived using PBKDF2-SHA256
+* stored securely on-device
+* never transmitted to the server
+* protected through password-based encryption
+
+Shared encrypted files use local re-encryption, meaning the server never gains access to decrypted file content.
