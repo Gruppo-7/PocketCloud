@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 import { getCurrentUser } from "../utils/storage";
 
@@ -15,87 +15,94 @@ export default function
 
     const { serverOnline, serverChecked } = useServerStatus();
 
-    async function loadFiles() {
+    const loadFiles =
+        useCallback(
+            async () => {
 
-        if (
-            !serverChecked
-        ) {
-            return;
-        }
+                if (
+                    !serverChecked
+                ) {
+                    return;
+                }
 
-        if (
-            !serverOnline
-        ) {
+                if (
+                    !serverOnline
+                ) {
 
-            setLoading(
-                false
-            );
+                    setLoading(
+                        false
+                    );
 
-            return;
-        }
+                    return;
+                }
 
-        try {
+                try {
 
-            setLoading(
-                true
-            );
+                    setLoading(
+                        true
+                    );
 
-            const user =
-                await getCurrentUser();
+                    const user =
+                        await getCurrentUser();
 
-            if (!user) {
+                    if (
+                        !user
+                    ) {
 
-                setFiles([]);
+                        setFiles([]);
 
-                return;
-            }
+                        return;
+                    }
 
-            const baseUrl =
-                await getBaseUrl();
+                    const baseUrl =
+                        await getBaseUrl();
 
-            const response =
-                await fetch(
-                    `${baseUrl}/${endpoint}/${user.id}`
-                );
+                    const response =
+                        await fetch(
+                            `${baseUrl}/${endpoint}/${user.id}`
+                        );
 
-            const data =
-                await response.json();
+                    const data =
+                        await response.json();
 
-            setFiles(
-                Array.isArray(
-                    data
-                )
-                    ? data
-                    : []
-            );
+                    setFiles(
+                        Array.isArray(
+                            data
+                        )
+                            ? data
+                            : []
+                    );
 
-        } catch (error) {
-
-            console.error(
-                `Load ${endpoint} error:`,
+                } catch (
                 error
-            );
+                ) {
 
-        } finally {
+                    console.error(
+                        `Load ${endpoint} error:`,
+                        error
+                    );
 
-            setLoading(
-                false
-            );
-        }
-    }
+                } finally {
+
+                    setLoading(
+                        false
+                    );
+                }
+            },
+
+            [
+                endpoint,
+                serverOnline,
+                serverChecked
+            ]
+        );
 
     useEffect(() => {
 
-        if (
-            serverOnline
-        ) {
-
-            loadFiles();
-        }
+        loadFiles();
 
     }, [
-        serverOnline,
-        serverChecked
+        loadFiles
     ]);
 
     return {

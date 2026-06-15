@@ -1,25 +1,16 @@
 import { Alert, Platform } from "react-native";
-
-import * as FileSystem
-    from "expo-file-system/legacy";
-
-import * as Sharing
-    from "expo-sharing";
-
-import * as Linking
-    from "expo-linking";
-
-import * as IntentLauncher
-    from "expo-intent-launcher";
-
-import {
-    getBaseUrl
-} from "./api";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+import * as Linking from "expo-linking";
+import * as IntentLauncher from "expo-intent-launcher";
+import { getMasterKey } from "./secureStorage";
+import { decryptFile, generateFileHash, scheduleTempFileCleanup, cleanupTemporaryFiles, decryptText } from "./crypto";
+import { getBaseUrl } from "./api";
 
 export async function
-openFile(
-    file
-) {
+    openFile(
+        file
+    ) {
 
     try {
 
@@ -46,6 +37,156 @@ openFile(
                     fileUri
                 );
 
+        let finalUri =
+            result.uri;
+
+        if (
+            file.is_encrypted
+        ) {
+
+            const masterKey =
+                await getMasterKey();
+
+            if (
+                !masterKey
+            ) {
+
+                await cleanupTemporaryFiles();
+
+                Alert.alert(
+
+                    "Errore",
+
+                    "Sessione sicura non disponibile"
+                );
+
+                return;
+            }
+
+            let decryptionKey =
+                masterKey;
+
+            /* Encryption v2:
+               masterKey -> fileKey */
+            if (
+                Number(
+                    file.encryption_version
+                ) >= 2
+            ) {
+
+                const encryptedFileKey =
+
+                    file
+                        .share_encrypted_file_key
+
+                    ||
+
+                    file
+                        .encrypted_file_key;
+
+                const encryptedFileKeyIV =
+
+                    file
+                        .share_encrypted_file_key_iv
+
+                    ||
+
+                    file
+                        .encrypted_file_key_iv;
+
+                decryptionKey =
+                    decryptText(
+
+                        encryptedFileKey,
+
+                        masterKey,
+
+                        encryptedFileKeyIV
+                    );
+
+                if (
+                    !decryptionKey
+                ) {
+
+                    await cleanupTemporaryFiles();
+
+                    Alert.alert(
+
+                        "Errore",
+
+                        "Impossibile recuperare chiave file"
+                    );
+
+                    return;
+                }
+            }
+
+            finalUri =
+                await decryptFile(
+
+                    result.uri,
+
+                    decryptionKey,
+
+                    file
+                        .encryption_iv,
+
+                    file.name
+                );
+
+            console.log(
+                "Decrypted file:",
+                finalUri
+            );
+
+            const decryptedHash =
+                await generateFileHash(
+                    finalUri
+                );
+
+            console.log(
+                "Integrity check:",
+                decryptedHash
+            );
+
+            const expectedHash =
+                file
+                    .sha256_fingerprint
+                    ?.trim()
+                    .toLowerCase();
+
+            const actualHash =
+                decryptedHash
+                    ?.trim()
+                    .toLowerCase();
+
+            console.log(
+                "Expected:",
+                expectedHash
+            );
+
+            console.log(
+                "Actual:",
+                actualHash
+            );
+
+            if (
+                actualHash
+                !==
+                expectedHash
+            ) {
+
+                Alert.alert(
+
+                    "Errore",
+
+                    "Il file potrebbe essere corrotto o alterato"
+                );
+
+                return;
+            }
+        }
+
         console.log(
             "Downloaded:",
             result
@@ -59,7 +200,7 @@ openFile(
 
             await Linking
                 .openURL(
-                    result.uri
+                    finalUri
                 );
 
         } else {
@@ -67,7 +208,7 @@ openFile(
             const contentUri =
                 await FileSystem
                     .getContentUriAsync(
-                        result.uri
+                        finalUri
                     );
 
             await IntentLauncher
@@ -83,14 +224,58 @@ openFile(
                 );
         }
 
+        if (
+            file.is_encrypted
+        ) {
+
+            scheduleTempFileCleanup(
+
+                finalUri,
+
+                30000
+            );
+        }
+
     } catch (
-        error
+    error
     ) {
 
         console.error(
             "Open file error:",
             error
         );
+
+        if (
+            error.message
+            ===
+            "MISSING_IV"
+        ) {
+
+            Alert.alert(
+
+                "File protetto non valido",
+
+                "Metadati di crittografia mancanti.\n\nIl file non può essere aperto."
+            );
+
+            return;
+        }
+
+        if (
+            error.message
+            ===
+            "DECRYPT_FAILED"
+        ) {
+
+            Alert.alert(
+
+                "Decrittazione fallita",
+
+                "Impossibile decifrare il file protetto.\n\nProva ad effettuare nuovamente il login."
+            );
+
+            return;
+        }
 
         Alert.alert(
             "Errore",
@@ -100,9 +285,9 @@ openFile(
 }
 
 export async function
-openInSystem(
-    file
-) {
+    openInSystem(
+        file
+    ) {
 
     try {
 
@@ -135,6 +320,133 @@ openInSystem(
                     fileUri
                 );
 
+        let finalUri =
+            result.uri;
+
+        if (
+            file.is_encrypted
+        ) {
+
+            const masterKey =
+                await getMasterKey();
+
+            if (
+                !masterKey
+            ) {
+
+                await cleanupTemporaryFiles();
+
+                Alert.alert(
+
+                    "Errore",
+
+                    "Sessione sicura non disponibile"
+                );
+
+                return;
+            }
+
+            let decryptionKey =
+                masterKey;
+
+            /* Encryption v2:
+               masterKey -> fileKey */
+            if (
+                Number(
+                    file.encryption_version
+                ) >= 2
+            ) {
+
+                decryptionKey =
+                    decryptText(
+
+                        file
+                            .encrypted_file_key,
+
+                        masterKey,
+
+                        file
+                            .encrypted_file_key_iv
+                    );
+
+                if (
+                    !decryptionKey
+                ) {
+
+                    await cleanupTemporaryFiles();
+
+                    Alert.alert(
+
+                        "Errore",
+
+                        "Impossibile recuperare chiave file"
+                    );
+
+                    return;
+                }
+            }
+
+            finalUri =
+                await decryptFile(
+
+                    result.uri,
+
+                    decryptionKey,
+
+                    file
+                        .encryption_iv,
+
+                    file.name
+                );
+
+            console.log(
+                "Decrypted for share:",
+                finalUri
+            );
+
+            const decryptedHash =
+                await generateFileHash(
+                    finalUri
+                );
+
+            const expectedHash =
+                file
+                    .sha256_fingerprint
+                    ?.trim()
+                    .toLowerCase();
+
+            const actualHash =
+                decryptedHash
+                    ?.trim()
+                    .toLowerCase();
+
+            console.log(
+                "Expected:",
+                expectedHash
+            );
+
+            console.log(
+                "Actual:",
+                actualHash
+            );
+
+            if (
+                actualHash
+                !==
+                expectedHash
+            ) {
+
+                Alert.alert(
+
+                    "Errore",
+
+                    "Il file potrebbe essere corrotto o alterato"
+                );
+
+                return;
+            }
+        }
+
         console.log(
             "Downloaded for share:",
             result
@@ -165,23 +477,72 @@ openInSystem(
             resolve =>
                 setTimeout(
                     resolve,
-                    300
+                    1000
                 )
+        );
+
+        console.log(
+            "Sharing URI:",
+            finalUri
         );
 
         await Sharing
             .shareAsync(
-                result.uri
+                finalUri
             );
 
+        if (
+            file.is_encrypted
+        ) {
+
+            scheduleTempFileCleanup(
+
+                finalUri,
+
+                60000
+            );
+        }
+
     } catch (
-        error
+    error
     ) {
 
         console.error(
             "Share file error:",
             error
         );
+
+        if (
+            error.message
+            ===
+            "MISSING_IV"
+        ) {
+
+            Alert.alert(
+
+                "File protetto non valido",
+
+                "Metadati di crittografia mancanti.\n\nIl file non può essere aperto."
+            );
+
+            return;
+        }
+
+        if (
+            error.message
+            ===
+            "DECRYPT_FAILED"
+        ) {
+
+            Alert.alert(
+
+                "Decrittazione fallita",
+
+                "Impossibile decifrare il file protetto.\n\nProva ad effettuare nuovamente il login."
+            );
+
+            return;
+        }
 
         Alert.alert(
             "Errore",

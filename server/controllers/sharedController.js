@@ -31,7 +31,15 @@ async function
             await pool.query(
                 `
                 SELECT
-    s.id AS share_id,
+
+    s.id
+        AS share_id,
+
+    s.permission,
+
+    s.encrypted_file_key,
+
+    s.encrypted_file_key_iv,
 
     f.id,
     f.name,
@@ -42,9 +50,14 @@ async function
     f.created_at,
     f.updated_at,
 
-    u.username AS owner,
+    f.is_encrypted,
+    f.algorithm,
+    f.encryption_iv,
+    f.encryption_version,
+    f.sha256_fingerprint,
 
-    s.permission
+    u.username
+        AS owner
 
 FROM shares s
 
@@ -57,8 +70,12 @@ JOIN users u
     f.owner_id
 
 WHERE
+
     s.shared_with_user_id
     = $1
+
+    AND s.status
+    = 'accepted'
 
 ORDER BY
     f.updated_at DESC
@@ -88,6 +105,195 @@ ORDER BY
 }
 
 async function
+    getPendingShares(
+        req,
+        res
+    ) {
+
+    try {
+
+        const {
+            userId
+        } = req.params;
+
+        const result =
+            await pool.query(
+                `
+                SELECT
+
+                    shares.id,
+                    shares.permission,
+                    shares.status,
+                    shares.pending_file_key,
+                    shares.created_at,
+
+                    files.id
+                        AS file_id,
+
+                    files.name,
+                    files.size,
+                    files.mime_type,
+                    files.is_encrypted,
+                    files.algorithm,
+                    files.encryption_iv,
+                    files.encryption_version,
+                    files.encrypted_file_key,
+                    files.encrypted_file_key_iv,
+
+                    users.username
+                        AS shared_by
+
+                FROM shares
+
+                INNER JOIN files
+                    ON files.id
+                    =
+                    shares.file_id
+
+                INNER JOIN users
+                    ON users.id
+                    =
+                    files.owner_id
+
+                WHERE
+
+                    shares.shared_with_user_id
+                    = $1
+
+                    AND shares.status
+                    = 'pending'
+
+                ORDER BY
+                    shares.created_at DESC
+                `,
+                [
+                    userId
+                ]
+            );
+
+        return res.json(
+            result.rows
+        );
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+            "Pending shares error:",
+            error
+        );
+
+        return res
+            .status(500)
+            .json({
+
+                error:
+                    "Server error"
+            });
+    }
+}
+
+async function
+    acceptShare(
+        req,
+        res
+    ) {
+
+    try {
+
+        const {
+            shareId
+        } = req.params;
+
+        const {
+
+            encrypted_file_key,
+
+            encrypted_file_key_iv
+
+        } = req.body;
+
+        const result =
+            await pool.query(
+                `
+                UPDATE shares
+                SET
+
+                    status
+                    = 'accepted',
+
+                    encrypted_file_key
+                    = $1,
+
+                    encrypted_file_key_iv
+                    = $2,
+
+                    pending_file_key
+                    = NULL,
+
+                    accepted_at
+                    = NOW()
+
+                WHERE id = $3
+
+                RETURNING *
+                `,
+                [
+
+                    encrypted_file_key,
+
+                    encrypted_file_key_iv,
+
+                    shareId
+                ]
+            );
+
+        if (
+            result.rows
+                .length
+            === 0
+        ) {
+
+            return res
+                .status(404)
+                .json({
+
+                    error:
+                        "Share non trovata"
+                });
+        }
+
+        return res
+            .json({
+
+                message:
+                    "Share accepted",
+
+                share:
+                    result.rows[0]
+            });
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+            "Accept share error:",
+            error
+        );
+
+        return res
+            .status(500)
+            .json({
+
+                error:
+                    "Server error"
+            });
+    }
+}
+
+async function
     shareFile(
         req,
         res
@@ -103,7 +309,9 @@ async function
 
             permission,
 
-            userId
+            userId,
+
+            pending_file_key
 
         } = req.body;
 
@@ -145,9 +353,15 @@ async function
             await pool.query(
                 `
         SELECT
-            owner_id
-        FROM files
-        WHERE id = $1
+
+    owner_id,
+
+    is_encrypted,
+
+    encryption_version
+
+FROM files
+WHERE id = $1
         `,
                 [file_id]
             );
@@ -247,27 +461,62 @@ async function
                 });
         }
 
+        const file =
+            fileResult
+                .rows[0];
+
+        const shareStatus =
+
+            file
+                .is_encrypted
+
+                &&
+
+                file
+                    .encryption_version
+                >= 2
+
+                ? "pending"
+
+                : "accepted";
+
         const result =
             await pool.query(
                 `
                 INSERT INTO shares
-                (
-                    file_id,
-                    shared_with_user_id,
-                    permission
-                )
-                VALUES
-                (
-                    $1,
-                    $2,
-                    $3
-                )
-                RETURNING *
+(
+    file_id,
+    shared_with_user_id,
+    permission,
+    pending_file_key,
+    status,
+    accepted_at
+)
+VALUES
+(
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6
+)
+RETURNING *
                 `,
                 [
                     file_id,
                     shared_with_user_id,
                     permission,
+                    pending_file_key,
+                    shareStatus,
+
+                    shareStatus
+
+                        === "accepted"
+
+                        ? new Date()
+
+                        : null
                 ]
             );
 
@@ -586,5 +835,7 @@ module.exports = {
     getFileShares,
     revokeShare,
     updateSharePermission,
-    removeSharedFile
+    removeSharedFile,
+    getPendingShares,
+    acceptShare
 };

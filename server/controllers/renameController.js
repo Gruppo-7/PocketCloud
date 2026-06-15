@@ -64,10 +64,18 @@ async function
             await pool.query(
                 `
                 SELECT
-                    owner_id,
-                    folder_id
-                FROM files
-                WHERE id = $1
+
+    owner_id,
+
+    folder_id,
+
+    name,
+
+    is_encrypted
+
+FROM files
+
+WHERE id = $1
                 `,
                 [fileId]
             );
@@ -87,11 +95,41 @@ async function
         }
 
         const {
+
             owner_id,
-            folder_id
+
+            folder_id,
+
+            name: currentName,
+
+            is_encrypted
+
         } =
             existingFile
                 .rows[0];
+
+        let finalName =
+            name.trim();
+
+        if (
+            is_encrypted
+        ) {
+
+            const cleanCurrentName =
+                currentName
+                    .replace(
+                        /\.encrypted$/i,
+                        ""
+                    );
+
+            const originalExtension =
+                cleanCurrentName
+                    .split(".")
+                    .pop();
+
+            finalName =
+                `${finalName}.${originalExtension}.encrypted`;
+        }
 
         const duplicate =
             await pool.query(
@@ -116,7 +154,7 @@ async function
 
                     folder_id,
 
-                    name.trim(),
+                    finalName,
 
                     fileId,
                 ]
@@ -152,7 +190,7 @@ async function
                 `,
                 [
 
-                    name.trim(),
+                    finalName,
 
                     fileId,
                 ]

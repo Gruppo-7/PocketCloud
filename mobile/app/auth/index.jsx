@@ -6,6 +6,8 @@ import { router } from "expo-router";
 import { saveLoginState, saveCurrentUser } from "../../utils/storage";
 import { removeServerAddress, logout } from "../../utils/storage";
 import { getBaseUrl } from "../../utils/api";
+import { generateSalt, deriveMasterKey, cleanupTemporaryFiles, generateMasterKey, encryptMasterKey, decryptMasterKey } from "../../utils/crypto";
+import { saveMasterKey, getMasterKey } from "../../utils/secureStorage";
 
 export default function AuthScreen() {
 
@@ -21,6 +23,8 @@ export default function AuthScreen() {
     const [surname, setSurname] = useState("");
     const [username, setUsername] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [preparingSecureSession, setPreparingSecureSession] = useState(false);
+    const [creatingAccount, setCreatingAccount] = useState(false);
 
     // Verifica email
     function isValidEmail(email) {
@@ -119,6 +123,102 @@ export default function AuthScreen() {
                 );
             }
 
+            try {
+
+                if (
+                    !data.user
+                        .encryption_salt
+                ) {
+
+                    console.log(
+                        "Legacy user detected"
+                    );
+
+                    await saveLoginState(
+                        true
+                    );
+
+                    await saveCurrentUser(
+                        data.user
+                    );
+
+                    Alert.alert(
+                        "Login",
+                        "Accesso eseguito"
+                    );
+
+                    router.replace(
+                        "/(tabs)/file"
+                    );
+
+                    return;
+                }
+
+                setPreparingSecureSession(
+                    true
+                );
+
+                await new Promise(
+                    resolve =>
+                        setTimeout(
+                            resolve,
+                            50
+                        )
+                );
+
+                const unlockKey =
+                    await deriveMasterKey(
+
+                        password,
+
+                        data.user
+                            .encryption_salt
+                    );
+
+                const masterKey =
+                    decryptMasterKey(
+
+                        data.user
+                            .encrypted_master_key,
+
+                        unlockKey,
+
+                        data.user
+                            .encrypted_master_key_iv
+                    );
+
+                if (
+                    !masterKey
+                ) {
+
+                    throw new Error(
+                        "SECURE_SESSION_FAILED"
+                    );
+                }
+
+                await saveMasterKey(
+                    masterKey
+                );
+
+                const storedKey =
+                    await getMasterKey();
+
+                if (
+                    !storedKey
+                ) {
+
+                    throw new Error(
+                        "SECURE_SESSION_FAILED"
+                    );
+                }
+
+            } finally {
+
+                setPreparingSecureSession(
+                    false
+                );
+            }
+
             await saveLoginState(
                 true
             );
@@ -137,6 +237,22 @@ export default function AuthScreen() {
             );
 
         } catch (error) {
+
+            if (
+                error.message
+                ===
+                "SECURE_SESSION_FAILED"
+            ) {
+
+                Alert.alert(
+
+                    "Sessione sicura non disponibile",
+
+                    "Impossibile inizializzare la sessione sicura.\n\nRiprova ad effettuare il login."
+                );
+
+                return;
+            }
 
             Alert.alert(
                 "Errore",
@@ -223,11 +339,38 @@ export default function AuthScreen() {
         }
 
         try {
+            setCreatingAccount(
+                true
+            );
 
             const baseUrl =
                 await getBaseUrl();
 
+            const encryptionSalt =
+                await generateSalt();
+
+            const masterKey =
+                await generateMasterKey();
+
+            const passwordKey =
+                await deriveMasterKey(
+                    password,
+                    encryptionSalt
+                );
+
+            const {
+                encrypted_master_key,
+                encrypted_master_key_iv
+            } =
+                await encryptMasterKey(
+
+                    masterKey,
+
+                    passwordKey
+                );
+
             console.log({
+
                 first_name:
                     name,
 
@@ -239,6 +382,13 @@ export default function AuthScreen() {
                 email,
 
                 password,
+
+                encryption_salt:
+                    encryptionSalt,
+
+                encrypted_master_key,
+
+                encrypted_master_key_iv
             });
 
             const response =
@@ -268,6 +418,13 @@ export default function AuthScreen() {
                                 email,
 
                                 password,
+
+                                encryption_salt:
+                                    encryptionSalt,
+
+                                encrypted_master_key,
+
+                                encrypted_master_key_iv
                             }),
                     }
                 );
@@ -300,25 +457,33 @@ export default function AuthScreen() {
                 error.message ||
                 "Registrazione fallita"
             );
+
+        } finally {
+
+            setCreatingAccount(
+                false
+            );
         }
     }
 
-    async function changeServer() {
+    async function
+        changeServer() {
 
         try {
 
-            // Logout
+            await cleanupTemporaryFiles();
+
             await logout();
 
-            // Rimuove server
             await removeServerAddress();
 
-            // Torna setup
             router.replace(
                 "/setup"
             );
 
-        } catch (error) {
+        } catch (
+        error
+        ) {
 
             Alert.alert(
                 "Errore",
@@ -522,6 +687,149 @@ export default function AuthScreen() {
 
                 </View>
             </ScrollView>
+            {
+                preparingSecureSession
+                && (
+
+                    <View
+                        style={{
+                            position:
+                                "absolute",
+
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+
+                            backgroundColor:
+                                "rgba(0,0,0,0.45)",
+
+                            justifyContent:
+                                "center",
+
+                            alignItems:
+                                "center",
+
+                            zIndex:
+                                999,
+                        }}
+                    >
+
+                        <View
+                            style={{
+                                backgroundColor:
+                                    "white",
+
+                                padding:
+                                    24,
+
+                                borderRadius:
+                                    16,
+
+                                alignItems:
+                                    "center",
+                            }}
+                        >
+
+                            <Text
+                                style={{
+                                    fontSize:
+                                        18,
+
+                                    fontWeight:
+                                        "600",
+                                }}
+                            >
+                                🔒 Preparazione
+                                sessione sicura...
+                            </Text>
+
+                        </View>
+
+                    </View>
+                )
+            }
+            {
+                creatingAccount
+                && (
+
+                    <View
+                        style={{
+                            position:
+                                "absolute",
+
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+
+                            backgroundColor:
+                                "rgba(0,0,0,0.45)",
+
+                            justifyContent:
+                                "center",
+
+                            alignItems:
+                                "center",
+
+                            zIndex:
+                                999,
+                        }}
+                    >
+
+                        <View
+                            style={{
+                                backgroundColor:
+                                    "white",
+
+                                padding:
+                                    24,
+
+                                borderRadius:
+                                    16,
+
+                                alignItems:
+                                    "center",
+                            }}
+                        >
+
+                            <Text
+                                style={{
+                                    fontSize:
+                                        18,
+
+                                    fontWeight:
+                                        "600",
+
+                                    textAlign:
+                                        "center",
+                                }}
+                            >
+                                🔐 Creazione account
+                                sicuro...
+                            </Text>
+
+                            <Text
+                                style={{
+                                    marginTop:
+                                        10,
+
+                                    color:
+                                        "gray",
+
+                                    textAlign:
+                                        "center",
+                                }}
+                            >
+                                Preparazione
+                                crittografia end-to-end
+                            </Text>
+
+                        </View>
+
+                    </View>
+                )
+            }
         </SafeAreaView>
     );
 }

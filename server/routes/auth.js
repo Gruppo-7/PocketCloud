@@ -4,7 +4,9 @@ const router = express.Router();
 
 const {
   register,
-  login
+  login,
+  changePassword,
+  deleteAccount
 } = require(
   "../controllers/authController"
 );
@@ -17,6 +19,16 @@ router.post(
 router.post(
   "/login",
   login
+);
+
+router.patch(
+  "/change-password",
+  changePassword
+);
+
+router.delete(
+  "/account/:userId",
+  deleteAccount
 );
 
 module.exports = router;

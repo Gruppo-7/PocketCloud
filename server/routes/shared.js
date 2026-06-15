@@ -2,11 +2,16 @@ const express = require("express");
 
 const router = express.Router();
 
-const { getSharedFiles, shareFile, getFileShares, revokeShare, updateSharePermission, removeSharedFile } = require("../controllers/sharedController");
+const { getSharedFiles, shareFile, getFileShares, revokeShare, updateSharePermission, removeSharedFile, getPendingShares, acceptShare } = require("../controllers/sharedController");
 
 router.get(
     "/file/:fileId",
     getFileShares
+);
+
+router.get(
+    "/pending/:userId",
+    getPendingShares
 );
 
 router.delete(
@@ -17,6 +22,11 @@ router.delete(
 router.patch(
     "/:shareId",
     updateSharePermission
+);
+
+router.patch(
+    "/:shareId/accept",
+    acceptShare
 );
 
 router.delete(

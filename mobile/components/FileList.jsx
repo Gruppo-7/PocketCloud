@@ -167,7 +167,17 @@ ${formatDate(
             "Dettagli file",
 
             `Nome:
-${selectedFile.name}
+${selectedFile
+                .is_encrypted
+
+                ? selectedFile.name
+                    .replace(
+                        ".encrypted",
+                        ""
+                    )
+
+                : selectedFile.name
+            }
 
 Tipo:
 ${selectedFile.mime_type
@@ -179,6 +189,28 @@ ${formatFileSize(
                     selectedFile.size
                 )
             )}
+
+Protezione:
+${selectedFile
+                .is_encrypted
+
+                ? "🔒 File protetto"
+
+                : "Nessuna"
+            }${selectedFile
+                .is_encrypted
+
+                ? `
+
+Algoritmo:
+${selectedFile.algorithm
+                || "AES-256-CBC"}
+
+Integrità:
+SHA256 verificata`
+
+                : ""
+            }
 
 Posizione:
 ${parentFolder
@@ -411,8 +443,19 @@ ${formatDate(
             >
 
                 <Ionicons
-                    name="document"
-                    size={gridView ? 48 : 26}
+                    name={
+                        item.is_encrypted
+
+                            ? "document-lock"
+
+                            : "document"
+                    }
+
+                    size={
+                        gridView
+                            ? 48
+                            : 26
+                    }
                 />
 
                 {
@@ -451,32 +494,122 @@ ${formatDate(
 
                 <View
                     style={{
-                        flex: gridView ? undefined : 1,
-                        marginLeft: gridView ? 0 : 12,
-                        marginTop: gridView ? 10 : 0,
-                        alignItems: gridView ? "center" : "flex-start",
+                        flex:
+                            gridView
+                                ? undefined
+                                : 1,
+
+                        marginLeft:
+                            gridView
+                                ? 0
+                                : 12,
+
+                        marginTop:
+                            gridView
+                                ? 10
+                                : 0,
                     }}
                 >
-                    <Text
-                        numberOfLines={1}
+
+                    <View
                         style={{
-                            fontSize: 16,
-                            fontWeight: "600",
+                            flexDirection:
+                                "row",
+
+                            alignItems:
+                                "center",
+
+                            justifyContent:
+                                "space-between",
+
+                            width:
+                                "100%",
                         }}
                     >
-                        {item.name}
-                    </Text>
 
-                    {!gridView && renderSubtitle && (
                         <Text
+                            numberOfLines={1}
                             style={{
-                                color: "gray",
-                                marginTop: 3,
+                                fontSize: 16,
+                                fontWeight: "600",
+                                flex: 1,
                             }}
                         >
-                            {renderSubtitle(item)}
+                            {
+                                item.is_encrypted
+
+                                    ? item.name
+                                        .replace(
+                                            ".encrypted",
+                                            ""
+                                        )
+
+                                    : item.name
+                            }
                         </Text>
-                    )}
+
+                        {
+                            item.is_encrypted
+                            && (
+
+                                <View
+                                    style={{
+                                        backgroundColor:
+                                            "#E8F1FF",
+
+                                        paddingHorizontal:
+                                            8,
+
+                                        paddingVertical:
+                                            3,
+
+                                        borderRadius:
+                                            999,
+
+                                        marginLeft:
+                                            8,
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            color:
+                                                "#007AFF",
+
+                                            fontSize:
+                                                12,
+
+                                            fontWeight:
+                                                "600",
+                                        }}
+                                    >
+                                        🔒 Protetto
+                                    </Text>
+                                </View>
+                            )
+                        }
+
+                    </View>
+
+                    {
+                        !gridView
+                        &&
+                        renderSubtitle
+                        && (
+
+                            <Text
+                                style={{
+                                    color:
+                                        "gray",
+
+                                    marginTop:
+                                        3,
+                                }}
+                            >
+                                {renderSubtitle(item)}
+                            </Text>
+                        )
+                    }
+
                 </View>
 
                 <TouchableOpacity
@@ -1012,51 +1145,84 @@ ${formatDate(
                         <TouchableOpacity
                             onPress={() => {
 
+                                const file =
+
+                                    selectedFile;
+
+                                const folder =
+
+                                    selectedFolder;
+
                                 if (
-                                    selectedFolder
+
+                                    folder
+
                                 ) {
 
                                     setSelectedFolders(
-                                        [
-                                            selectedFolder
-                                        ]
+
+                                        [folder]
+
                                     );
 
-                                    setSelectedFile(
-                                        null
-                                    );
+                                } else if (
 
-                                    setSelectedFolder(
-                                        null
-                                    );
+                                    file
 
-                                } else {
+                                ) {
 
                                     setSelectedFiles(
-                                        [
-                                            selectedFile
-                                        ]
+
+                                        [file]
+
                                     );
 
-                                    setSelectedFile(
-                                        null
-                                    );
                                 }
 
+                                setSelectedFile(
+
+                                    null
+
+                                );
+
+                                setSelectedFolder(
+
+                                    null
+
+                                );
+
+                                setMenuType(
+
+                                    null
+
+                                );
+
                                 if (
+
                                     setShowDeleteModal
+
                                 ) {
 
                                     setShowDeleteModal(
+
                                         true
+
                                     );
 
-                                } else {
+                                } else if (
+
+                                    file
+
+                                ) {
 
                                     onDeleteFile?.(
-                                        selectedFile?.id
+
+                                        file.id
+
                                     );
+
                                 }
+
                             }}
 
                             style={{
@@ -1095,7 +1261,32 @@ ${formatDate(
                 }
 
                 initialValue={
-                    fileToRename?.name
+
+                    fileToRename
+                        ?.itemType
+                        ===
+                        "file"
+
+                        ? fileToRename
+                            ?.is_encrypted
+
+                            ? fileToRename.name
+                                .replace(
+                                    ".encrypted",
+                                    ""
+                                )
+                                .replace(
+                                    /\.[^.]+$/,
+                                    ""
+                                )
+
+                            : fileToRename.name
+                                .replace(
+                                    /\.[^.]+$/,
+                                    ""
+                                )
+
+                        : fileToRename?.name
                 }
 
                 onClose={() => {
@@ -1126,7 +1317,7 @@ ${formatDate(
 
                         await onRenameFile?.(
 
-                            fileToRename.id,
+                            fileToRename,
 
                             newName
                         );

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
         NOT NULL,
 
     username VARCHAR(50)
-    UNIQUE NOT NULL,
+        UNIQUE NOT NULL,
 
     email VARCHAR(255)
         UNIQUE NOT NULL,
@@ -21,11 +21,17 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT
         NOT NULL,
 
+    encryption_salt TEXT,
+
+    encrypted_master_key TEXT,
+
+    encrypted_master_key_iv TEXT,
+
     created_at TIMESTAMP
-    DEFAULT CURRENT_TIMESTAMP,
+        DEFAULT CURRENT_TIMESTAMP,
 
     updated_at TIMESTAMP
-    DEFAULT CURRENT_TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =========================
@@ -94,12 +100,18 @@ CREATE TABLE IF NOT EXISTS files (
 
     encryption_iv TEXT,
 
+    encrypted_file_key_iv TEXT,
+
     encryption_version INTEGER
     DEFAULT 1,
 
     encrypted_file_key TEXT,
 
-    algorithm VARCHAR(50),
+    algorithm VARCHAR(50)
+    DEFAULT 'AES-256-CBC',
+
+    is_encrypted BOOLEAN
+    DEFAULT FALSE,
 
     created_at TIMESTAMP
         DEFAULT CURRENT_TIMESTAMP,
@@ -137,16 +149,34 @@ CREATE TABLE IF NOT EXISTS shares (
         NOT NULL,
 
     permission VARCHAR(20)
-        NOT NULL
-        CHECK (
-            permission IN (
-                'read',
-                'write'
-            )
-        ),
+    NOT NULL
+    CHECK (
+        permission IN (
+            'read',
+            'write'
+        )
+    ),
+
+    encrypted_file_key TEXT,
+
+    encrypted_file_key_iv TEXT,
+
+    pending_file_key TEXT,
+
+    status VARCHAR(20)
+    DEFAULT 'pending'
+    CHECK (
+        status IN (
+            'pending',
+            'accepted',
+            'rejected'
+        )
+    ),
+
+    accepted_at TIMESTAMP,
 
     created_at TIMESTAMP
-        DEFAULT CURRENT_TIMESTAMP,
+    DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_file
         FOREIGN KEY (

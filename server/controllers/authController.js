@@ -7,9 +7,15 @@ const {
     "../database/db"
 );
 
+const fs =
+    require("fs");
+
+const path =
+    require("path");
+
 // REGISTER
 async function
-register(req, res) {
+    register(req, res) {
 
     try {
 
@@ -18,13 +24,11 @@ register(req, res) {
             last_name,
             username,
             email,
-            password
+            password,
+            encryption_salt,
+            encrypted_master_key,
+            encrypted_master_key_iv
         } = req.body;
-
-        console.log(
-            "Register request:",
-            req.body
-        );
 
         // Validation
         if (
@@ -83,15 +87,27 @@ register(req, res) {
             await pool.query(
                 `
                 INSERT INTO users
-                (
-                    first_name,
-                    last_name,
-                    username,
-                    email,
-                    password_hash
-                )
-                VALUES
-                ($1, $2, $3, $4, $5)
+(
+    first_name,
+    last_name,
+    username,
+    email,
+    password_hash,
+    encryption_salt,
+    encrypted_master_key,
+    encrypted_master_key_iv
+)
+VALUES
+(
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8
+)
 
                 RETURNING
                 id,
@@ -105,7 +121,10 @@ register(req, res) {
                     last_name,
                     username,
                     email,
-                    passwordHash
+                    passwordHash,
+                    encryption_salt,
+                    encrypted_master_key,
+                    encrypted_master_key_iv
                 ]
             );
 
@@ -137,7 +156,7 @@ register(req, res) {
 
 // LOGIN
 async function
-login(req, res) {
+    login(req, res) {
 
     try {
 
@@ -145,11 +164,6 @@ login(req, res) {
             email,
             password
         } = req.body;
-
-        console.log(
-            "Login request:",
-            req.body
-        );
 
         if (
             !email ||
@@ -228,6 +242,18 @@ login(req, res) {
 
                     email:
                         user.email,
+
+                    encryption_salt:
+                        user
+                            .encryption_salt,
+
+                    encrypted_master_key:
+                        user
+                            .encrypted_master_key,
+
+                    encrypted_master_key_iv:
+                        user
+                            .encrypted_master_key_iv
                 },
             });
 
@@ -246,7 +272,371 @@ login(req, res) {
     }
 }
 
+async function
+    changePassword(
+        req,
+        res
+    ) {
+
+    try {
+
+        const {
+
+            userId,
+
+            currentPassword,
+
+            newPassword,
+
+            encryption_salt,
+
+            encrypted_master_key,
+
+            encrypted_master_key_iv
+
+        } = req.body;
+
+        if (
+
+            !userId ||
+
+            !currentPassword ||
+
+            !newPassword ||
+
+            !encryption_salt ||
+
+            !encrypted_master_key ||
+
+            !encrypted_master_key_iv
+        ) {
+
+            return res
+                .status(400)
+                .json({
+
+                    error:
+                        "Missing fields"
+                });
+        }
+
+        const userResult =
+            await pool.query(
+                `
+                SELECT
+                    password_hash
+                FROM users
+                WHERE id = $1
+                `,
+                [userId]
+            );
+
+        if (
+            userResult.rows
+                .length === 0
+        ) {
+
+            return res
+                .status(404)
+                .json({
+
+                    error:
+                        "User not found"
+                });
+        }
+
+        const user =
+            userResult.rows[0];
+
+        const validPassword =
+            await bcrypt.compare(
+
+                currentPassword,
+
+                user
+                    .password_hash
+            );
+
+        if (
+            !validPassword
+        ) {
+
+            return res
+                .status(401)
+                .json({
+
+                    error:
+                        "Password attuale non valida"
+                });
+        }
+
+        const passwordHash =
+            await bcrypt.hash(
+
+                newPassword,
+
+                10
+            );
+
+        await pool.query(
+            `
+            UPDATE users
+            SET
+
+                password_hash
+                = $1,
+
+                encryption_salt
+                = $2,
+
+                encrypted_master_key
+                = $3,
+
+                encrypted_master_key_iv
+                = $4,
+
+                updated_at
+                = NOW()
+
+            WHERE id = $5
+            `,
+            [
+
+                passwordHash,
+
+                encryption_salt,
+
+                encrypted_master_key,
+
+                encrypted_master_key_iv,
+
+                userId
+            ]
+        );
+
+        return res
+            .status(200)
+            .json({
+
+                message:
+                    "Password aggiornata"
+            });
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+            "Change password error:",
+            error
+        );
+
+        return res
+            .status(500)
+            .json({
+
+                error:
+                    "Server error"
+            });
+    }
+}
+
+async function
+    deleteAccount(
+        req,
+        res
+    ) {
+
+    try {
+
+        const {
+            userId
+        } = req.params;
+
+        const {
+            password
+        } = req.body;
+
+        if (
+            !password
+        ) {
+
+            return res
+                .status(400)
+                .json({
+
+                    error:
+                        "Password richiesta"
+                });
+        }
+
+        const userResult =
+            await pool.query(
+                `
+                SELECT
+                    password_hash
+                FROM users
+                WHERE id = $1
+                `,
+                [userId]
+            );
+
+        if (
+            userResult.rows
+                .length === 0
+        ) {
+
+            return res
+                .status(404)
+                .json({
+
+                    error:
+                        "Utente non trovato"
+                });
+        }
+
+        const validPassword =
+            await bcrypt.compare(
+
+                password,
+
+                userResult
+                    .rows[0]
+                    .password_hash
+            );
+
+        if (
+            !validPassword
+        ) {
+
+            return res
+                .status(401)
+                .json({
+
+                    error:
+                        "Password non valida"
+                });
+        }
+
+        const filesResult =
+            await pool.query(
+                `
+                SELECT
+                    storage_key
+                FROM files
+                WHERE owner_id = $1
+                `,
+                [userId]
+            );
+
+        for (
+            const file
+            of filesResult.rows
+        ) {
+
+            const filePath =
+                path.join(
+
+                    __dirname,
+
+                    "..",
+
+                    "storage",
+
+                    file
+                        .storage_key
+                );
+
+            if (
+                fs.existsSync(
+                    filePath
+                )
+            ) {
+
+                fs.unlinkSync(
+                    filePath
+                );
+            }
+        }
+
+        await pool.query(
+            `
+            DELETE
+            FROM shares
+            WHERE
+
+                shared_with_user_id
+                = $1
+
+                OR
+
+                file_id IN (
+
+                    SELECT id
+                    FROM files
+                    WHERE owner_id = $1
+                )
+            `,
+            [userId]
+        );
+
+        await pool.query(
+            `
+            DELETE
+            FROM files
+            WHERE owner_id = $1
+            `,
+            [userId]
+        );
+
+        await pool.query(
+            `
+            DELETE
+            FROM folders
+            WHERE owner_id = $1
+            `,
+            [userId]
+        );
+
+        await pool.query(
+            `
+            DELETE
+            FROM users
+            WHERE id = $1
+            `,
+            [userId]
+        );
+
+        return res
+            .status(200)
+            .json({
+
+                message:
+                    "Account eliminato"
+            });
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+            "Delete account error:",
+            error
+        );
+
+        return res
+            .status(500)
+            .json({
+
+                error:
+                    "Server error"
+            });
+    }
+}
+
 module.exports = {
     register,
     login,
+    changePassword,
+    deleteAccount
 };

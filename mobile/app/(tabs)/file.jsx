@@ -28,6 +28,9 @@ import * as DocumentPicker from "expo-document-picker";
 import MoveModal from "../../components/MoveModal";
 import { useFocusEffect } from "@react-navigation/native";
 import React from "react";
+import { generateSalt, deriveMasterKey, generateIV, encryptText, decryptText, encryptFile, decryptFile, generateFileHash, generateFileKey } from "../../utils/crypto";
+import { getMasterKey } from "../../utils/secureStorage";
+
 
 export default function FilesScreen() {
 
@@ -61,65 +64,24 @@ export default function FilesScreen() {
   const [itemToMove, setItemToMove] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingShares, setPendingShares] = useState([]);
 
   async function
     uploadFile(
+
       file,
+
       conflictStrategy = null,
-      fileHash
+
+      fileHash,
+
+      encryptionMetadata = null
     ) {
 
     try {
 
       const user =
         await getCurrentUser();
-
-      const formData =
-        new FormData();
-
-      formData.append(
-        "file",
-        {
-
-          uri:
-            file.uri,
-
-          name:
-            file.name,
-
-          type:
-            file.mimeType
-            ||
-            "application/octet-stream",
-        }
-      );
-
-      formData.append(
-        "owner_id",
-        user.id
-      );
-
-      formData.append(
-        "folder_id",
-        currentFolder
-          ?.id
-        ?? ""
-      );
-
-      formData.append(
-        "sha256_fingerprint",
-        fileHash
-      );
-
-      if (
-        conflictStrategy
-      ) {
-
-        formData.append(
-          "conflict_strategy",
-          conflictStrategy
-        );
-      }
 
       const baseUrl =
         await getBaseUrl();
@@ -188,6 +150,33 @@ export default function FilesScreen() {
                   ? {
                     conflict_strategy:
                       conflictStrategy
+                  }
+                  : {}),
+
+                ...(encryptionMetadata
+                  ? {
+
+                    is_encrypted:
+                      "true",
+
+                    algorithm:
+                      encryptionMetadata
+                        .algorithm,
+
+                    encryption_iv:
+                      encryptionMetadata
+                        .iv,
+
+                    encrypted_file_key:
+                      encryptionMetadata
+                        .encryptedFileKey,
+
+                    encrypted_file_key_iv:
+                      encryptionMetadata
+                        .encryptedFileKeyIV,
+
+                    encryption_version:
+                      "2",
                   }
                   : {}),
               },
@@ -338,7 +327,61 @@ export default function FilesScreen() {
       .assets[0];
   }
 
-  async function pickDocument() {
+  async function
+    loadPendingShares() {
+
+    try {
+
+      const user =
+        await getCurrentUser();
+
+      if (
+        !user
+      ) {
+        return;
+      }
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/shared/pending/${user.id}`
+        );
+
+      const data =
+        await response
+          .json();
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
+        );
+      }
+
+      setPendingShares(
+        Array.isArray(
+          data
+        )
+          ? data
+          : []
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Load pending shares error:",
+        error
+      );
+    }
+  }
+
+  async function pickDocument(shouldEncrypt = false) {
 
     try {
 
@@ -350,6 +393,94 @@ export default function FilesScreen() {
       ) {
 
         return;
+      }
+
+      let uploadTarget =
+        file;
+
+      let encryptionIV =
+        null;
+
+      let encryptionMetadata =
+        null;
+
+      if (
+        shouldEncrypt
+      ) {
+
+        const masterKey =
+          await getMasterKey();
+
+        if (
+          !masterKey
+        ) {
+
+          Alert.alert(
+
+            "Errore",
+
+            "Sessione sicura non disponibile"
+          );
+
+          return;
+        }
+
+        const fileKey =
+          await generateFileKey();
+
+        const fileIV =
+          await generateIV();
+
+        const encryptedFileKeyIV =
+          await generateIV();
+
+        const encryptedFileKey =
+          encryptText(
+
+            fileKey,
+
+            masterKey,
+
+            encryptedFileKeyIV
+          );
+
+        encryptionMetadata =
+        {
+          iv:
+            fileIV,
+
+          algorithm:
+            "AES-256-CBC",
+
+          encryptedFileKey,
+
+          encryptedFileKeyIV,
+        };
+
+        const encryptedUri =
+          await encryptFile(
+
+            file.uri,
+
+            fileKey,
+
+            fileIV
+          );
+
+        uploadTarget = {
+
+          ...file,
+
+          uri:
+            encryptedUri,
+
+          name:
+            `${file.name}.encrypted`,
+        };
+
+        console.log(
+          "Encrypted upload ready"
+        );
       }
 
       const fileHash =
@@ -372,9 +503,18 @@ export default function FilesScreen() {
         data
       } =
         await uploadFile(
-          file,
+
+          uploadTarget,
+
           undefined,
-          fileHash
+
+          fileHash,
+
+          shouldEncrypt
+
+            ? encryptionMetadata
+
+            : null
         );
 
       if (
@@ -1065,6 +1205,92 @@ export default function FilesScreen() {
         return;
       }
 
+      let uploadTarget =
+        selectedFile;
+
+      let encryptionMetadata =
+        null;
+
+      if (
+        fileToReplace
+          .is_encrypted
+      ) {
+
+        const masterKey =
+          await getMasterKey();
+
+        if (
+          !masterKey
+        ) {
+
+          Alert.alert(
+
+            "Errore",
+
+            "Sessione sicura non disponibile"
+          );
+
+          return;
+        }
+
+        const decryptionKey =
+          decryptText(
+
+            fileToReplace
+              .encrypted_file_key,
+
+            masterKey,
+
+            fileToReplace
+              .encrypted_file_key_iv
+          );
+
+        if (
+          !decryptionKey
+        ) {
+
+          Alert.alert(
+
+            "Errore",
+
+            "Impossibile recuperare chiave file"
+          );
+
+          return;
+        }
+
+        const newIV =
+          await generateIV();
+
+        const encryptedUri =
+          await encryptFile(
+
+            selectedFile.uri,
+
+            decryptionKey,
+
+            newIV
+          );
+
+        uploadTarget =
+        {
+          ...selectedFile,
+
+          uri:
+            encryptedUri,
+
+          name:
+            fileToReplace
+              .name,
+        };
+
+        encryptionMetadata =
+        {
+          encryption_iv:
+            newIV,
+        };
+      }
+
       const fileHash =
         await generateFileHash(
           selectedFile.uri
@@ -1086,7 +1312,7 @@ export default function FilesScreen() {
           .createUploadTask(
             `${baseUrl}/files/${fileToReplace.id}/replace`,
 
-            selectedFile.uri,
+            uploadTarget.uri,
 
             {
 
@@ -1110,7 +1336,7 @@ export default function FilesScreen() {
               {
                 "x-file-name":
                   encodeURIComponent(
-                    selectedFile.name
+                    uploadTarget.name
                   ),
               },
 
@@ -1124,6 +1350,8 @@ export default function FilesScreen() {
 
                 sha256_fingerprint:
                   fileHash,
+                ...(encryptionMetadata
+                  || {}),
               },
             },
 
@@ -1225,7 +1453,7 @@ export default function FilesScreen() {
 
   async function
     renameFile(
-      fileId,
+      file,
       newName
     ) {
 
@@ -1234,12 +1462,15 @@ export default function FilesScreen() {
       const user =
         await getCurrentUser();
 
+      const finalName =
+        newName.trim();
+
       const baseUrl =
         await getBaseUrl();
 
       const response =
         await fetch(
-          `${baseUrl}/files/${fileId}/rename`,
+          `${baseUrl}/files/${file.id}/rename`,
           {
 
             method:
@@ -1254,7 +1485,7 @@ export default function FilesScreen() {
               JSON.stringify({
 
                 name:
-                  newName,
+                  finalName,
 
                 userId:
                   user.id
@@ -1441,6 +1672,190 @@ export default function FilesScreen() {
   }
 
   async function
+    acceptShare(
+      share
+    ) {
+
+    try {
+
+      const masterKey =
+        await getMasterKey();
+
+      if (
+        !masterKey
+      ) {
+
+        Alert.alert(
+
+          "Errore",
+
+          "Sessione sicura non disponibile"
+        );
+
+        return;
+      }
+
+      const fileKey =
+        share
+          .pending_file_key;
+
+      if (
+        !fileKey
+      ) {
+
+        Alert.alert(
+
+          "Errore",
+
+          "Chiave file non disponibile"
+        );
+
+        return;
+      }
+
+      const encryptedFileKeyIV =
+        await generateIV();
+
+      const encryptedFileKey =
+        encryptText(
+
+          fileKey,
+
+          masterKey,
+
+          encryptedFileKeyIV
+        );
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/shared/${share.id}/accept`,
+          {
+
+            method:
+              "PATCH",
+
+            headers:
+            {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+
+                encrypted_file_key:
+                  encryptedFileKey,
+
+                encrypted_file_key_iv:
+                  encryptedFileKeyIV,
+              }),
+          }
+        );
+
+      const data =
+        await response
+          .json();
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
+        );
+      }
+
+      await loadPendingShares();
+
+      Alert.alert(
+
+        "Condivisione accettata",
+
+        share.name
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Accept share error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Accettazione fallita"
+      );
+    }
+  }
+
+  async function
+    rejectShare(
+      shareId
+    ) {
+
+    try {
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/shared/${shareId}`,
+          {
+            method:
+              "DELETE",
+          }
+        );
+
+      const data =
+        await response
+          .json();
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
+        );
+      }
+
+      setPendingShares(
+        prev =>
+          prev.filter(
+            share =>
+              share.id
+              !==
+              shareId
+          )
+      );
+
+      Alert.alert(
+        "Condivisione rifiutata"
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Reject share error:",
+        error
+      );
+
+      Alert.alert(
+        "Errore",
+        "Impossibile rifiutare la condivisione"
+      );
+    }
+  }
+
+  async function
     shareWithUser({
 
       file,
@@ -1457,6 +1872,64 @@ export default function FilesScreen() {
 
       const baseUrl =
         await getBaseUrl();
+
+      let pendingFileKey =
+        null;
+
+      if (
+        file.is_encrypted
+        &&
+        file.encryption_version
+        >= 2
+      ) {
+
+        const masterKey =
+          await getMasterKey();
+
+        if (
+          !masterKey
+        ) {
+
+          Alert.alert(
+
+            "Errore",
+
+            "Sessione sicura non disponibile"
+          );
+
+          return;
+        }
+
+        pendingFileKey =
+          decryptText(
+
+            file
+              .encrypted_file_key,
+
+            masterKey,
+
+            file
+              .encrypted_file_key_iv
+          );
+
+        if (
+          !pendingFileKey
+        ) {
+
+          Alert.alert(
+
+            "Errore",
+
+            "Impossibile condividere file crittografato"
+          );
+
+          return;
+        }
+
+        console.log(
+          "Recovered share file key"
+        );
+      }
 
       const response =
         await fetch(
@@ -1482,7 +1955,10 @@ export default function FilesScreen() {
                 permission,
 
                 userId:
-                  user.id
+                  user.id,
+
+                pending_file_key:
+                  pendingFileKey
               }),
           }
         );
@@ -1687,12 +2163,11 @@ ${username}`
 
         reloadFolders();
 
+        loadPendingShares();
+
       },
 
-      [
-        reloadFiles,
-        reloadFolders
-      ]
+      []
     )
   );
 
@@ -2108,6 +2583,104 @@ ${username}`
           }
         />
 
+        {
+          pendingShares.length
+          > 0
+          && (
+
+            <TouchableOpacity
+
+              onPress={() => {
+
+                const share =
+                  pendingShares[0];
+
+                Alert.alert(
+
+                  "Share ricevuta",
+
+                  `${share.shared_by}
+ha condiviso
+${share.name}`,
+
+                  [
+
+                    {
+                      text:
+                        "Rifiuta",
+
+                      style:
+                        "destructive",
+
+                      onPress:
+                        () =>
+                          rejectShare(
+                            share.id
+                          ),
+                    },
+
+                    {
+                      text:
+                        "Accetta",
+
+                      onPress:
+                        () =>
+                          acceptShare(
+                            share
+                          ),
+                    },
+                  ]
+                );
+              }}
+
+              style={{
+                backgroundColor:
+                  "#FFF",
+
+                borderRadius:
+                  16,
+
+                padding:
+                  16,
+
+                marginBottom:
+                  16,
+
+                borderWidth:
+                  1,
+
+                borderColor:
+                  "#E5E5E5",
+              }}
+            >
+
+              <Text
+                style={{
+                  fontWeight:
+                    "600",
+                }}
+              >
+                Nuove condivisioni
+              </Text>
+
+              <Text
+                style={{
+                  marginTop:
+                    4,
+                  color:
+                    "gray",
+                }}
+              >
+                {
+                  pendingShares
+                    .length
+                } file in attesa
+              </Text>
+
+            </TouchableOpacity>
+          )
+        }
+
         <FileList
           data={combinedItems}
           gridView={gridView}
@@ -2242,7 +2815,47 @@ ${username}`
                   "Carica file",
 
                 onPress:
-                  pickDocument,
+                  () =>
+
+                    Alert.alert(
+
+                      "Carica file",
+
+                      "Vuoi crittografare il file?",
+
+                      [
+
+                        {
+                          text:
+                            "Normale",
+
+                          onPress:
+                            () =>
+                              pickDocument(
+                                false
+                              ),
+                        },
+
+                        {
+                          text:
+                            "🔒 Crittografato",
+
+                          onPress:
+                            () =>
+                              pickDocument(
+                                true
+                              ),
+                        },
+
+                        {
+                          text:
+                            "Annulla",
+
+                          style:
+                            "cancel",
+                        },
+                      ]
+                    ),
               },
 
               {

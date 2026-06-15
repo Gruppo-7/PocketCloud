@@ -3,8 +3,10 @@ import { Text, View, TouchableOpacity, Alert, TextInput, Modal } from "react-nat
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
-import { logout, getServerAddress, saveServerAddress } from "../../utils/storage";
+import { logout, getServerAddress, saveServerAddress, getCurrentUser } from "../../utils/storage";
 import { useServerStatus } from "../../context/ServerContext";
+import { cleanupTemporaryFiles } from "../../utils/crypto";
+import { getBaseUrl } from "../../utils/api";
 
 export default function SettingsScreen() {
 
@@ -13,11 +15,16 @@ export default function SettingsScreen() {
   const [showServerModal, setShowServerModal] = useState(false);
   const [tempServerAddress, setTempServerAddress] = useState("");
   const [changingServer, setChangingServer] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Logout utente
   async function handleLogout() {
 
     try {
+
+      await cleanupTemporaryFiles();
 
       await logout();
 
@@ -27,32 +34,119 @@ export default function SettingsScreen() {
 
     } catch (error) {
 
+      console.error(
+        "Logout error:",
+        error
+      );
+
       Alert.alert(
         "Errore",
-        "Impossibile effettuare il logout"
+        "Impossibile effettuare logout"
       );
     }
   }
 
   // Eliminazione account
-  function deleteAccount() {
-    Alert.alert(
-      "Elimina account",
-      "Sei sicuro di voler eliminare l'account?",
-      [
-        {
-          text: "Annulla",
-          style: "cancel",
-        },
-        {
-          text: "Elimina",
-          style: "destructive",
-          onPress: function () {
-            console.log("Account eliminato");
-          },
-        },
-      ]
-    );
+  async function
+    deleteAccount() {
+
+    if (
+      !deletePassword
+        .trim()
+    ) {
+
+      Alert.alert(
+        "Errore",
+        "Inserisci la password"
+      );
+
+      return;
+    }
+
+    try {
+
+      setDeletingAccount(
+        true
+      );
+
+      const user =
+        await getCurrentUser();
+
+      const baseUrl =
+        await getBaseUrl();
+
+      const response =
+        await fetch(
+          `${baseUrl}/auth/account/${user.id}`,
+          {
+
+            method:
+              "DELETE",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                password:
+                  deletePassword
+              }),
+          }
+        );
+
+      const data =
+        await response
+          .json();
+
+      if (
+        !response.ok
+      ) {
+
+        throw new Error(
+          data.error
+        );
+      }
+
+      await cleanupTemporaryFiles();
+
+      await logout();
+
+      setShowDeleteModal(
+        false
+      );
+
+      setDeletePassword(
+        ""
+      );
+
+      Alert.alert(
+        "Account eliminato",
+        "Il tuo account è stato eliminato"
+      );
+
+      router.replace(
+        "/auth"
+      );
+
+    } catch (
+    error
+    ) {
+
+      Alert.alert(
+        "Errore",
+        error.message
+        ||
+        "Eliminazione account fallita"
+      );
+
+    } finally {
+
+      setDeletingAccount(
+        false
+      );
+    }
   }
 
   useEffect(() => {
@@ -456,7 +550,9 @@ export default function SettingsScreen() {
                 return;
               }
 
-              deleteAccount();
+              setShowDeleteModal(
+                true
+              );
             }}
           >
             <SettingRow
@@ -628,6 +724,237 @@ export default function SettingsScreen() {
                     changingServer
                       ? "Verifica..."
                       : "Salva"
+                  }
+                </Text>
+              </TouchableOpacity>
+
+            </View>
+
+          </View>
+
+        </View>
+
+      </Modal>
+      <Modal
+        visible={
+          showDeleteModal
+        }
+
+        transparent
+
+        animationType=
+        "fade"
+      >
+
+        <View
+          style={{
+            flex: 1,
+
+            justifyContent:
+              "center",
+
+            alignItems:
+              "center",
+
+            backgroundColor:
+              "rgba(0,0,0,0.35)",
+
+            padding:
+              20,
+          }}
+        >
+
+          <View
+            style={{
+              width:
+                "100%",
+
+              maxWidth:
+                420,
+
+              backgroundColor:
+                "#fff",
+
+              borderRadius:
+                20,
+
+              padding:
+                24,
+            }}
+          >
+
+            <Text
+              style={{
+                fontSize:
+                  22,
+
+                fontWeight:
+                  "700",
+
+                marginBottom:
+                  12,
+
+                color:
+                  "#FF3B30",
+              }}
+            >
+              Elimina account
+            </Text>
+
+            <Text
+              style={{
+                color:
+                  "#666",
+
+                marginBottom:
+                  20,
+
+                lineHeight:
+                  22,
+              }}
+            >
+              Questa operazione è permanente.
+              Verranno eliminati file,
+              cartelle, condivisioni e dati
+              crittografati.
+            </Text>
+
+            <TextInput
+              placeholder=
+              "Inserisci password"
+
+              value={
+                deletePassword
+              }
+
+              onChangeText={
+                setDeletePassword
+              }
+
+              secureTextEntry
+
+              style={{
+                width:
+                  "100%",
+
+                backgroundColor:
+                  "#F8F8F8",
+
+                borderRadius:
+                  16,
+
+                borderWidth:
+                  1,
+
+                borderColor:
+                  "#E5E5E5",
+
+                paddingHorizontal:
+                  18,
+
+                paddingVertical:
+                  16,
+
+                fontSize:
+                  17,
+
+                marginBottom:
+                  20,
+              }}
+            />
+
+            <View
+              style={{
+                flexDirection:
+                  "row",
+
+                justifyContent:
+                  "space-between",
+
+                alignItems:
+                  "center",
+              }}
+            >
+
+              <TouchableOpacity
+                onPress={() =>
+                  setShowDeleteModal(
+                    false
+                  )
+                }
+
+                style={{
+                  paddingHorizontal:
+                    18,
+
+                  paddingVertical:
+                    12,
+
+                  borderRadius:
+                    12,
+
+                  borderWidth:
+                    1,
+
+                  borderColor:
+                    "#E5E5E5",
+
+                  backgroundColor:
+                    "#F8F8F8",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize:
+                      16,
+
+                    fontWeight:
+                      "500",
+                  }}
+                >
+                  Annulla
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={
+                  deleteAccount
+                }
+
+                disabled={
+                  deletingAccount
+                }
+
+                style={{
+                  backgroundColor:
+                    "#FF3B30",
+
+                  paddingHorizontal:
+                    18,
+
+                  paddingVertical:
+                    12,
+
+                  borderRadius:
+                    12,
+                }}
+              >
+                <Text
+                  style={{
+                    color:
+                      "#fff",
+
+                    fontWeight:
+                      "600",
+
+                    fontSize:
+                      16,
+                  }}
+                >
+                  {
+                    deletingAccount
+                      ? "Eliminazione..."
+                      : "Elimina"
                   }
                 </Text>
               </TouchableOpacity>

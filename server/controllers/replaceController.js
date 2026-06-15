@@ -29,7 +29,13 @@ async function
         } = req.params;
 
         const {
-            userId
+
+            userId,
+
+            sha256_fingerprint,
+
+            encryption_iv
+
         } = req.body;
 
         const newFile =
@@ -127,22 +133,38 @@ async function
             await pool.query(
                 `
                 UPDATE files
-                SET
-                    storage_key = $1,
-                    size = $2,
-                    mime_type = $3,
-                    updated_at = NOW(),
-                    sha256_fingerprint = NULL
-                WHERE id = $4
-                RETURNING *
+SET
+    storage_key = $1,
+
+    size = $2,
+
+    mime_type = $3,
+
+    updated_at = NOW(),
+
+    sha256_fingerprint = $4,
+
+    encryption_iv =
+        COALESCE(
+            $5,
+            encryption_iv
+        )
+
+WHERE id = $6
+
+RETURNING *
                 `,
                 [
-
                     newFile.filename,
 
                     newFile.size,
 
                     newFile.mimetype,
+
+                    sha256_fingerprint,
+
+                    encryption_iv
+                    || null,
 
                     fileId,
                 ]
@@ -161,7 +183,7 @@ async function
             });
 
     } catch (
-        error
+    error
     ) {
 
         console.error(

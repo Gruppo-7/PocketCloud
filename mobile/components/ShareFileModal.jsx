@@ -28,6 +28,24 @@ export default function
         () => {
 
             if (
+                file
+                    ?.is_encrypted
+            ) {
+
+                setPermission(
+                    "read"
+                );
+            }
+
+        },
+
+        [file]
+    );
+
+    useEffect(
+        () => {
+
+            if (
                 visible
             ) {
 
@@ -673,7 +691,7 @@ export default function
                                 12,
 
                             marginBottom:
-                                28,
+                                16,
                         }}
                     >
 
@@ -712,42 +730,72 @@ export default function
                             </Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            onPress={() =>
-                                setPermission(
-                                    "write"
-                                )
-                            }
+                        {
+                            !file
+                                ?.is_encrypted
+                            && (
 
-                            style={{
-                                flex: 1,
+                                <TouchableOpacity
+                                    onPress={() =>
+                                        setPermission(
+                                            "write"
+                                        )
+                                    }
 
-                                padding:
-                                    14,
+                                    style={{
+                                        flex: 1,
 
-                                borderRadius:
-                                    12,
+                                        padding:
+                                            14,
 
-                                borderWidth:
-                                    1,
+                                        borderRadius:
+                                            12,
 
-                                borderColor:
-                                    permission
-                                        ===
-                                        "write"
-                                        ? "#007AFF"
-                                        : "#ECECEC",
+                                        borderWidth:
+                                            1,
 
-                                alignItems:
-                                    "center",
-                            }}
-                        >
-                            <Text>
-                                Modifica
-                            </Text>
-                        </TouchableOpacity>
+                                        borderColor:
+                                            permission
+                                                ===
+                                                "write"
+                                                ? "#007AFF"
+                                                : "#ECECEC",
+
+                                        alignItems:
+                                            "center",
+                                    }}
+                                >
+                                    <Text>
+                                        Modifica
+                                    </Text>
+                                </TouchableOpacity>
+                            )
+                        }
 
                     </View>
+
+                    {
+                        file?.is_encrypted
+                        && (
+
+                            <Text
+                                style={{
+                                    fontSize:
+                                        13,
+
+                                    color:
+                                        "#666",
+
+                                    marginBottom:
+                                        24,
+                                }}
+                            >
+                                I file crittografati
+                                supportano solo
+                                accesso in lettura.
+                            </Text>
+                        )
+                    }
 
                     <View
                         style={{

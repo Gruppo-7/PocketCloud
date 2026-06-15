@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { deleteMasterKey, getMasterKey } from "./secureStorage";
 
 // SERVER
 
@@ -107,18 +108,38 @@ export async function getLoginState() {
     }
 }
 
-export async function logout() {
+export async function
+    logout() {
 
     try {
 
-        await AsyncStorage.removeItem(
-            "isLoggedIn"
-        );
+        await deleteMasterKey();
 
-    } catch (error) {
+        await AsyncStorage
+            .removeItem(
+                "isLoggedIn"
+            );
 
         console.log(
+            "Logout completed"
+        );
+
+        const stored =
+            await getMasterKey();
+
+        console.log(
+            "After logout:",
+            stored
+        );
+
+    } catch (
+    error
+    ) {
+
+        console.log(
+
             "Errore logout:",
+
             error
         );
     }

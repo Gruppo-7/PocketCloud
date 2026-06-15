@@ -1,12 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Text, View, TouchableOpacity, Alert, ScrollView } from "react-native";
+import { Text, View, TouchableOpacity, Alert, ScrollView, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
-import { getCurrentUser, saveStorageUsage, getStorageUsage } from "../../utils/storage";
+import { getCurrentUser, saveStorageUsage, getStorageUsage, saveCurrentUser } from "../../utils/storage";
 import { getBaseUrl } from "../../utils/api";
 import { useFocusEffect } from "@react-navigation/native";
 import React from "react";
 import { useServerStatus } from "../../context/ServerContext";
+import { generateSalt, deriveMasterKey, encryptMasterKey, decryptMasterKey } from "../../utils/crypto";
+import { getMasterKey, saveMasterKey } from "../../utils/secureStorage";
+
 
 export default function AccountScreen() {
 
@@ -15,6 +18,21 @@ export default function AccountScreen() {
     const [user, setUser] = useState(null);
 
     const [usedStorage, setUsedStorage] = useState("0 MB");
+
+    const [showPasswordModal, setShowPasswordModal] =
+        useState(false);
+
+    const [currentPassword, setCurrentPassword] =
+        useState("");
+
+    const [newPassword, setNewPassword] =
+        useState("");
+
+    const [confirmPassword, setConfirmPassword] =
+        useState("");
+
+    const [changingPassword, setChangingPassword] =
+        useState(false);
 
     useFocusEffect(
 
@@ -182,11 +200,262 @@ export default function AccountScreen() {
     }
 
     // Cambio password
-    function changePassword() {
-        Alert.alert(
-            "Cambio password",
-            "Funzionalità non ancora disponibile"
-        );
+    async function
+        changePassword() {
+
+        if (
+            !currentPassword
+            ||
+            !newPassword
+            ||
+            !confirmPassword
+        ) {
+
+            Alert.alert(
+                "Errore",
+                "Compila tutti i campi"
+            );
+
+            return;
+        }
+
+        if (
+            newPassword.length
+            < 8
+        ) {
+
+            Alert.alert(
+                "Errore",
+                "La nuova password deve contenere almeno 8 caratteri"
+            );
+
+            return;
+        }
+
+        if (
+            newPassword
+            !==
+            confirmPassword
+        ) {
+
+            Alert.alert(
+                "Errore",
+                "Le password non coincidono"
+            );
+
+            return;
+        }
+
+        if (
+            currentPassword
+            ===
+            newPassword
+        ) {
+
+            Alert.alert(
+                "Errore",
+                "La nuova password deve essere diversa dalla precedente"
+            );
+
+            return;
+        }
+
+        try {
+
+            setChangingPassword(
+                true
+            );
+
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        50
+                    )
+            );
+
+            const unlockKey =
+                await deriveMasterKey(
+
+                    currentPassword,
+
+                    user
+                        .encryption_salt
+                );
+
+            let masterKey;
+
+            try {
+
+                masterKey =
+                    decryptMasterKey(
+
+                        user
+                            .encrypted_master_key,
+
+                        unlockKey,
+
+                        user
+                            .encrypted_master_key_iv
+                    );
+
+                if (
+                    !masterKey
+                ) {
+
+                    throw new Error(
+                        "INVALID_PASSWORD"
+                    );
+                }
+
+            } catch {
+
+                Alert.alert(
+                    "Errore",
+                    "Password attuale non valida"
+                );
+
+                return;
+            }
+
+            const newSalt =
+                await generateSalt();
+
+            const newUnlockKey =
+                await deriveMasterKey(
+
+                    newPassword,
+
+                    newSalt
+                );
+
+            const encryptedData =
+                await encryptMasterKey(
+
+                    masterKey,
+
+                    newUnlockKey
+                );
+
+            const baseUrl =
+                await getBaseUrl();
+
+            const response =
+                await fetch(
+                    `${baseUrl}/auth/change-password`,
+                    {
+
+                        method:
+                            "PATCH",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                userId:
+                                    user.id,
+
+                                currentPassword,
+
+                                newPassword,
+
+                                encryption_salt:
+                                    newSalt,
+
+                                encrypted_master_key:
+                                    encryptedData
+                                        .encrypted_master_key,
+
+                                encrypted_master_key_iv:
+                                    encryptedData
+                                        .encrypted_master_key_iv
+                            }),
+                    }
+                );
+
+            const data =
+                await response
+                    .json();
+
+            if (
+                !response.ok
+            ) {
+
+                throw new Error(
+                    data.error
+                );
+            }
+
+            await saveMasterKey(
+                masterKey
+            );
+
+            const updatedUser = {
+
+                ...user,
+
+                encryption_salt:
+                    newSalt,
+
+                encrypted_master_key:
+                    encryptedData
+                        .encrypted_master_key,
+
+                encrypted_master_key_iv:
+                    encryptedData
+                        .encrypted_master_key_iv
+            };
+
+            setUser(
+                updatedUser
+            );
+
+            await saveCurrentUser(
+                updatedUser
+            );
+
+            setCurrentPassword(
+                ""
+            );
+
+            setNewPassword(
+                ""
+            );
+
+            setConfirmPassword(
+                ""
+            );
+
+            setShowPasswordModal(
+                false
+            );
+
+            Alert.alert(
+                "Password aggiornata",
+                "La password è stata aggiornata con successo"
+            );
+
+        } catch (
+        error
+        ) {
+
+            Alert.alert(
+                "Errore",
+                error.message
+                ||
+                "Cambio password fallito"
+            );
+
+        } finally {
+
+            setChangingPassword(
+                false
+            );
+        }
     }
 
     return (
@@ -309,7 +578,11 @@ export default function AccountScreen() {
                     />
 
                     <TouchableOpacity
-                        onPress={changePassword}
+                        onPress={() =>
+                            setShowPasswordModal(
+                                true
+                            )
+                        }
                     >
                         <ActionRow
                             icon="key-outline"
@@ -329,6 +602,397 @@ export default function AccountScreen() {
                     />
                 </View>
             </ScrollView>
+            {showPasswordModal && (
+
+                <View
+                    style={{
+                        position:
+                            "absolute",
+
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+
+                        backgroundColor:
+                            "rgba(0,0,0,0.35)",
+
+                        justifyContent:
+                            "center",
+
+                        padding:
+                            20,
+                    }}
+                >
+
+                    <View
+                        style={{
+                            backgroundColor:
+                                "#fff",
+
+                            borderRadius:
+                                20,
+
+                            padding:
+                                24,
+
+                            width:
+                                "100%",
+
+                            maxWidth:
+                                420,
+                        }}
+                    >
+
+                        <Text
+                            style={{
+                                fontSize:
+                                    22,
+
+                                fontWeight:
+                                    "700",
+
+                                marginBottom:
+                                    18,
+                            }}
+                        >
+                            Cambia password
+                        </Text>
+
+                        <TextInput
+
+                            placeholder=
+                            "Password attuale"
+
+                            value={
+                                currentPassword
+                            }
+
+                            onChangeText={
+                                setCurrentPassword
+                            }
+
+                            secureTextEntry
+                            style={{
+                                width:
+                                    "100%",
+
+                                backgroundColor:
+                                    "#F8F8F8",
+
+                                borderRadius:
+                                    16,
+
+                                borderWidth:
+                                    1,
+
+                                borderColor:
+                                    "#E5E5E5",
+
+                                paddingHorizontal:
+                                    18,
+
+                                paddingVertical:
+                                    16,
+
+                                fontSize:
+                                    17,
+
+                                color:
+                                    "#000",
+
+                                marginBottom:
+                                    14,
+                            }}
+                        />
+
+                        <TextInput
+                            placeholder=
+                            "Nuova password"
+
+                            value={
+                                newPassword
+                            }
+
+                            onChangeText={
+                                setNewPassword
+                            }
+
+                            secureTextEntry
+                            style={{
+                                width:
+                                    "100%",
+
+                                backgroundColor:
+                                    "#F8F8F8",
+
+                                borderRadius:
+                                    16,
+
+                                borderWidth:
+                                    1,
+
+                                borderColor:
+                                    "#E5E5E5",
+
+                                paddingHorizontal:
+                                    18,
+
+                                paddingVertical:
+                                    16,
+
+                                fontSize:
+                                    17,
+
+                                color:
+                                    "#000",
+
+                                marginBottom:
+                                    14,
+                            }}
+                        />
+
+                        <TextInput
+                            placeholder=
+                            "Conferma password"
+
+                            value={
+                                confirmPassword
+                            }
+
+                            onChangeText={
+                                setConfirmPassword
+                            }
+
+                            secureTextEntry
+                            style={{
+                                width:
+                                    "100%",
+
+                                backgroundColor:
+                                    "#F8F8F8",
+
+                                borderRadius:
+                                    16,
+
+                                borderWidth:
+                                    1,
+
+                                borderColor:
+                                    "#E5E5E5",
+
+                                paddingHorizontal:
+                                    18,
+
+                                paddingVertical:
+                                    16,
+
+                                fontSize:
+                                    17,
+
+                                color:
+                                    "#000",
+
+                                marginBottom:
+                                    14,
+                            }}
+                        />
+
+                        <View
+                            style={{
+                                flexDirection:
+                                    "row",
+
+                                justifyContent:
+                                    "flex-end",
+
+                                gap:
+                                    12,
+
+                                marginTop:
+                                    12,
+                            }}
+                        >
+
+                            <TouchableOpacity
+                                onPress={() =>
+                                    setShowPasswordModal(
+                                        false
+                                    )
+                                }
+
+                                style={{
+                                    paddingHorizontal:
+                                        18,
+
+                                    paddingVertical:
+                                        12,
+
+                                    borderRadius:
+                                        12,
+
+                                    borderWidth:
+                                        1,
+
+                                    borderColor:
+                                        "#E5E5E5",
+
+                                    backgroundColor:
+                                        "#F8F8F8",
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        fontSize:
+                                            16,
+
+                                        fontWeight:
+                                            "500",
+
+                                        color:
+                                            "#333",
+                                    }}
+                                >
+                                    Annulla
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={
+                                    changePassword
+                                }
+
+                                disabled={
+                                    changingPassword
+                                }
+
+                                style={{
+                                    backgroundColor:
+                                        "#007AFF",
+
+                                    paddingHorizontal:
+                                        18,
+
+                                    paddingVertical:
+                                        12,
+
+                                    borderRadius:
+                                        12,
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        color:
+                                            "#fff",
+
+                                        fontWeight:
+                                            "600",
+
+                                        fontSize:
+                                            16,
+                                    }}
+                                >
+                                    {
+                                        changingPassword
+                                            ? "Aggiornamento..."
+                                            : "Aggiorna"
+                                    }
+                                </Text>
+                            </TouchableOpacity>
+
+                        </View>
+
+                    </View>
+
+                </View>
+            )}
+            {
+                changingPassword
+                && (
+
+                    <View
+                        style={{
+                            position:
+                                "absolute",
+
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+
+                            backgroundColor:
+                                "rgba(0,0,0,0.45)",
+
+                            justifyContent:
+                                "center",
+
+                            alignItems:
+                                "center",
+
+                            zIndex:
+                                999,
+                        }}
+                    >
+
+                        <View
+                            style={{
+                                backgroundColor:
+                                    "white",
+
+                                padding:
+                                    24,
+
+                                borderRadius:
+                                    16,
+
+                                alignItems:
+                                    "center",
+
+                                width:
+                                    "80%",
+                            }}
+                        >
+
+                            <Text
+                                style={{
+                                    fontSize:
+                                        18,
+
+                                    fontWeight:
+                                        "600",
+
+                                    textAlign:
+                                        "center",
+                                }}
+                            >
+                                🔐 Aggiornamento
+                                sicurezza account...
+                            </Text>
+
+                            <Text
+                                style={{
+                                    marginTop:
+                                        10,
+
+                                    color:
+                                        "gray",
+
+                                    textAlign:
+                                        "center",
+
+                                    lineHeight:
+                                        22,
+                                }}
+                            >
+                                Ricifratura della
+                                chiave master in corso
+                            </Text>
+
+                        </View>
+
+                    </View>
+                )
+            }
         </SafeAreaView>
     );
 }

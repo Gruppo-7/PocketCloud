@@ -257,6 +257,22 @@ export default function SharedScreen() {
 
   const sortedFiles =
     [...filteredFiles]
+
+      .map(
+        item => ({
+
+          ...item,
+
+          share_encrypted_file_key:
+            item
+              .encrypted_file_key,
+
+          share_encrypted_file_key_iv:
+            item
+              .encrypted_file_key_iv,
+        })
+      )
+
       .sort(
         (a, b) => {
 

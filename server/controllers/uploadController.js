@@ -94,7 +94,18 @@ async function uploadFile(
                 });
         }
 
-        const { owner_id, folder_id, conflict_strategy, sha256_fingerprint } = req.body;
+        const {
+            owner_id,
+            folder_id,
+            conflict_strategy,
+            sha256_fingerprint,
+            is_encrypted,
+            algorithm,
+            encryption_iv,
+            encrypted_file_key,
+            encrypted_file_key_iv,
+            encryption_version
+        } = req.body;
 
         let fileName =
             decodeURIComponent(
@@ -291,25 +302,37 @@ LIMIT 1
             await pool.query(
                 `
                 INSERT INTO files
-                (
-                    owner_id,
-                    folder_id,
-                    name,
-                    storage_key,
-                    size,
-                    mime_type,
-                    sha256_fingerprint
-                )
+(
+    owner_id,
+    folder_id,
+    name,
+    storage_key,
+    size,
+    mime_type,
+    sha256_fingerprint,
+    is_encrypted,
+    algorithm,
+    encryption_iv,
+    encrypted_file_key,
+    encrypted_file_key_iv,
+    encryption_version
+)
                 VALUES
-                (
-                $1,
-                $2,
-                $3,
-                $4,
-                $5,
-                $6,
-                $7
-                )
+(
+$1,
+$2,
+$3,
+$4,
+$5,
+$6,
+$7,
+$8,
+$9,
+$10,
+$11,
+$12,
+$13
+)
                 RETURNING *
                 `,
                 [
@@ -319,16 +342,31 @@ LIMIT 1
 
                     fileName,
 
-                    req.file
-                        .filename,
+                    req.file.filename,
 
-                    req.file
-                        .size,
+                    req.file.size,
 
-                    req.file
-                        .mimetype,
+                    req.file.mimetype,
 
-                    sha256_fingerprint
+                    sha256_fingerprint,
+
+                    is_encrypted
+                    === "true",
+
+                    algorithm
+                    || null,
+
+                    encryption_iv
+                    || null,
+
+                    encrypted_file_key
+                    || null,
+
+                    encrypted_file_key_iv
+                    || null,
+
+                    encryption_version
+                    || 1,
                 ]
             );
 
