@@ -228,3 +228,193 @@ export async function
                 "usedStorage"
             );
 }
+
+// =========================
+// CACHE FILES
+// =========================
+
+export async function
+    saveCachedFiles(
+        files
+    ) {
+
+    try {
+
+        await AsyncStorage
+            .setItem(
+
+                "cachedFiles",
+
+                JSON.stringify(
+                    files
+                )
+            );
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+
+            "Save cached files error:",
+
+            error
+        );
+    }
+}
+
+export async function
+    getCachedFiles() {
+
+    try {
+
+        const files =
+            await AsyncStorage
+                .getItem(
+                    "cachedFiles"
+                );
+
+        return files
+            ? JSON.parse(
+                files
+            )
+            : [];
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+
+            "Get cached files error:",
+
+            error
+        );
+
+        return [];
+    }
+}
+
+
+// =========================
+// CACHE FOLDERS
+// =========================
+
+export async function
+    saveCachedFolders(
+        folders
+    ) {
+
+    try {
+
+        await AsyncStorage
+            .setItem(
+
+                "cachedFolders",
+
+                JSON.stringify(
+                    folders
+                )
+            );
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+
+            "Save cached folders error:",
+
+            error
+        );
+    }
+}
+
+export async function
+    getCachedFolders() {
+
+    try {
+
+        const folders =
+            await AsyncStorage
+                .getItem(
+                    "cachedFolders"
+                );
+
+        return folders
+            ? JSON.parse(
+                folders
+            )
+            : [];
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+
+            "Get cached folders error:",
+
+            error
+        );
+
+        return [];
+    }
+}
+
+
+// =========================
+// LAST SYNC
+// =========================
+
+export async function
+    saveLastSync() {
+
+    try {
+
+        await AsyncStorage
+            .setItem(
+
+                "lastSync",
+
+                new Date()
+                    .toISOString()
+            );
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+
+            "Save last sync error:",
+
+            error
+        );
+    }
+}
+
+export async function
+    getLastSync() {
+
+    try {
+
+        return await AsyncStorage
+            .getItem(
+                "lastSync"
+            );
+
+    } catch (
+    error
+    ) {
+
+        console.error(
+
+            "Get last sync error:",
+
+            error
+        );
+
+        return null;
+    }
+}

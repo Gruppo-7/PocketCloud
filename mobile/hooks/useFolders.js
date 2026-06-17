@@ -1,22 +1,12 @@
-import {
-    useEffect,
-    useState
-} from "react";
+import { useEffect, useState } from "react";
 
-import {
-    getCurrentUser
-} from "../utils/storage";
+import { getCurrentUser, getCachedFolders, saveCachedFolders, saveLastSync } from "../utils/storage";
 
-import {
-    getBaseUrl
-} from "../utils/api";
+import { getBaseUrl } from "../utils/api";
 
-import {
-    useServerStatus
-} from "../context/ServerContext";
+import { useServerStatus } from "../context/ServerContext";
 
-export default function
-useFolders() {
+export default function useFolders() {
 
     const [
         folders,
@@ -37,34 +27,12 @@ useFolders() {
         useServerStatus();
 
     async function
-    loadFolders() {
-
-        if (
-            !serverChecked
-        ) {
-            return;
-        }
-
-        if (
-            !serverOnline
-        ) {
-
-            setLoading(
-                false
-            );
-
-            return;
-        }
+        loadFolders() {
 
         try {
 
-            setLoading(
-                true
-            );
-
             const user =
-                await
-                getCurrentUser();
+                await getCurrentUser();
 
             if (
                 !user
@@ -74,12 +42,51 @@ useFolders() {
                     []
                 );
 
+                setLoading(
+                    false
+                );
+
+                return;
+            }
+
+            // CACHE FIRST
+            const cachedFolders =
+                await getCachedFolders();
+
+            if (
+                cachedFolders.length > 0
+            ) {
+
+                setFolders(
+                    cachedFolders
+                );
+
+                setLoading(
+                    false
+                );
+            }
+
+            // Server non ancora controllato
+            if (
+                !serverChecked
+            ) {
+                return;
+            }
+
+            // Offline → mostra cache
+            if (
+                !serverOnline
+            ) {
+
+                setLoading(
+                    false
+                );
+
                 return;
             }
 
             const baseUrl =
-                await
-                getBaseUrl();
+                await getBaseUrl();
 
             const response =
                 await fetch(
@@ -87,14 +94,29 @@ useFolders() {
                 );
 
             const data =
-                await response.json();
+                await response
+                    .json();
+
+            const finalFolders =
+                Array.isArray(
+                    data
+                )
+                    ? data
+                    : [];
 
             setFolders(
-                data
+                finalFolders
             );
 
+            // aggiorna cache
+            await saveCachedFolders(
+                finalFolders
+            );
+
+            await saveLastSync();
+
         } catch (
-            error
+        error
         ) {
 
             console.error(
@@ -112,12 +134,7 @@ useFolders() {
 
     useEffect(() => {
 
-        if (
-            serverOnline
-        ) {
-
-            loadFolders();
-        }
+        loadFolders();
 
     }, [
         serverOnline,

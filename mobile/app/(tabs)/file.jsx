@@ -28,9 +28,12 @@ import * as DocumentPicker from "expo-document-picker";
 import MoveModal from "../../components/MoveModal";
 import { useFocusEffect } from "@react-navigation/native";
 import React from "react";
-import { generateSalt, deriveMasterKey, generateIV, encryptText, decryptText, encryptFile, decryptFile, generateFileHash, generateFileKey } from "../../utils/crypto";
+import { generateSalt, deriveMasterKey, generateIV, encryptText, decryptText, encryptFile, encryptFileChunked, decryptFile, generateFileHash, generateFileKey } from "../../utils/crypto";
 import { getMasterKey } from "../../utils/secureStorage";
-
+import { useSyncStatus } from "../../context/SyncContext";
+import { savePendingUpload, removePendingUpload, getPendingUploads, processUploadQueue, updatePendingUpload } from "../../utils/uploadQueue";
+import { deleteCachedFile } from "../../utils/cacheManager";
+import { formatFileSize, formatDate } from "../../utils/formatters";
 
 export default function FilesScreen() {
 
@@ -62,23 +65,144 @@ export default function FilesScreen() {
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [selectedMoveFolder, setSelectedMoveFolder] = useState(null);
   const [itemToMove, setItemToMove] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [pendingShares, setPendingShares] = useState([]);
+  const { updateFileState, removeFileState, syncStates } = useSyncStatus();
+  const [uploadingFiles, setUploadingFiles] = useState([]);
 
-  async function
-    uploadFile(
+  useEffect(() => {
 
-      file,
+    async function
+      restoreUploads() {
 
-      conflictStrategy = null,
+      const pendingUploads =
+        await getPendingUploads();
 
-      fileHash,
+      console.log(
+        "SYNC STATES",
+        syncStates
+      );
 
-      encryptionMetadata = null
-    ) {
+      const validIds =
+        pendingUploads.map(
+          upload => upload.id
+        );
+
+      const restoredUploads =
+        Object.entries(syncStates)
+
+          .filter(
+            ([fileId, state]) =>
+
+              validIds.includes(
+                fileId
+              )
+
+              &&
+
+              (
+                state.state ===
+                "waiting_server"
+
+                ||
+
+                state.state ===
+                "syncing"
+
+                ||
+
+                state.state ===
+                "encrypting"
+              )
+          )
+
+          .map(
+            ([fileId, state]) => ({
+
+              id:
+                fileId,
+
+              itemType:
+                "file",
+
+              name:
+                state.fileName,
+
+              size:
+                0,
+
+              created_at:
+                new Date()
+                  .toISOString(),
+
+              updated_at:
+                new Date()
+                  .toISOString(),
+
+              isUploading:
+                true,
+
+              isRestored:
+                true,
+            })
+          );
+
+      setUploadingFiles(
+        prev => {
+
+          const existingNames =
+            prev.map(
+              file =>
+                file.name
+            );
+
+          const uniqueRestored =
+            restoredUploads.filter(
+              file =>
+
+                !existingNames.includes(
+                  file.name
+                )
+            );
+
+          return [
+            ...prev,
+            ...uniqueRestored
+          ];
+        }
+      );
+    }
+
+    restoreUploads();
+
+  }, [syncStates]);
+
+  async function uploadFile(
+
+    file,
+
+    conflictStrategy = null,
+
+    fileHash,
+
+    encryptionMetadata = null
+  ) {
 
     try {
+
+      const tempId =
+        file.uploadId
+        ||
+        file.originalName
+        ||
+        file.name;
+
+      updateFileState(
+        tempId,
+        "syncing",
+        0,
+        file.originalName
+        || file.name
+      );
 
       const user =
         await getCurrentUser();
@@ -86,13 +210,14 @@ export default function FilesScreen() {
       const baseUrl =
         await getBaseUrl();
 
-      setIsUploading(
-        true
-      );
+      let waitingServerInterval =
+        null;
 
-      setUploadProgress(
-        0
-      );
+      let lastProgressTime =
+        Date.now();
+
+      let lastPercent =
+        0;
 
       const subscription =
         FileSystem
@@ -194,12 +319,32 @@ export default function FilesScreen() {
                     /
                     progress
                       .totalBytesExpectedToSend
-                  )
-                  * 100
+                  ) * 100
                 );
 
-              setUploadProgress(
-                percent
+              // upload ripartito da zero
+              if (
+                percent < lastPercent
+              ) {
+
+                updateFileState(
+                  tempId,
+                  "syncing",
+                  0,
+                  file.originalName
+                  || file.name
+                );
+              }
+
+              lastPercent =
+                percent;
+
+              updateFileState(
+                tempId,
+                "syncing",
+                percent,
+                file.originalName
+                || file.name
               );
             }
           );
@@ -234,26 +379,26 @@ export default function FilesScreen() {
         data
       );
 
+      updateFileState(
+        tempId,
+        "synced",
+        100,
+        file.originalName || file.name
+      );
+
+      setTimeout(() => {
+
+        removeFileState(
+          tempId
+        );
+
+      }, 3000);
+
       return {
         response,
         data
       };
     } finally {
-
-      setTimeout(
-        () => {
-
-          setUploadProgress(
-            null
-          );
-
-          setIsUploading(
-            false
-          );
-        },
-
-        500
-      );
     }
   }
 
@@ -330,6 +475,17 @@ export default function FilesScreen() {
   async function
     loadPendingShares() {
 
+    if (
+      !serverOnline
+    ) {
+
+      setPendingShares(
+        []
+      );
+
+      return;
+    }
+
     try {
 
       const user =
@@ -381,7 +537,263 @@ export default function FilesScreen() {
     }
   }
 
+  async function
+    resumeUpload(
+      job
+    ) {
+
+    try {
+
+      updateFileState(
+        job.id,
+        "syncing",
+        0,
+        job.name
+      );
+
+      const {
+        response,
+        data
+      } =
+        await uploadFile(
+          {
+            uri: job.uri,
+            name: job.shouldEncrypt
+              ? `${job.name}.encrypted`
+              : job.name,
+
+            mimeType: job.mimeType,
+
+            originalName: job.name,
+
+            uploadId: job.id
+          },
+
+          null,
+
+          job.fileHash,
+
+          job.encryptionMetadata
+        );
+
+      if (
+        data?.sameContent
+      ) {
+
+        await removePendingUpload(
+          job.id
+        );
+
+        removeFileState(
+          job.id
+        );
+
+        setUploadingFiles(
+          prev =>
+            prev.filter(
+              file =>
+                file.id !== job.id
+            )
+        );
+
+        await reloadFiles();
+
+        return;
+      }
+
+      if (
+        response.ok
+      ) {
+
+        await removePendingUpload(
+          job.id
+        );
+
+        setUploadingFiles(
+          prev =>
+            prev.filter(
+              file =>
+                file.id !==
+                job.id
+            )
+        );
+
+        removeFileState(
+          job.id
+        );
+
+        await reloadFiles();
+
+        return;
+      }
+
+      throw new Error(
+        "Upload failed"
+      );
+
+    } catch (
+    error
+    ) {
+
+      console.error(
+        "Resume upload error:",
+        error
+      );
+
+      const retryCount =
+        (
+          job.retryCount
+          ?? 0
+        ) + 1;
+
+      const MAX_RETRIES =
+        3;
+
+      // server offline
+      if (
+        !serverOnline
+      ) {
+
+        updateFileState(
+          job.id,
+          "waiting_server",
+          0,
+          job.name
+        );
+
+        return;
+      }
+
+      // troppi tentativi
+      if (
+        retryCount >=
+        MAX_RETRIES
+      ) {
+
+        updateFileState(
+          job.id,
+          "error",
+          0,
+          job.name
+        );
+
+        await updatePendingUpload(
+          job.id,
+          {
+            retryCount,
+
+            status:
+              "failed",
+
+            lastError:
+              String(
+                error
+              )
+          }
+        );
+
+        return;
+      }
+
+      // salva retry persistito
+      await updatePendingUpload(
+        job.id,
+        {
+          retryCount,
+
+          status:
+            "retrying",
+
+          lastError:
+            String(
+              error
+            )
+        }
+      );
+
+      updateFileState(
+        job.id,
+        "waiting_server",
+        0,
+        job.name
+      );
+
+      // retry automatico
+      setTimeout(
+        () => {
+
+          resumeUpload({
+            ...job,
+            retryCount
+          });
+
+        },
+        2000
+      );
+    }
+  }
+
+  async function
+    retryUpload(
+      fileName
+    ) {
+
+    const uploads =
+      await getPendingUploads();
+
+    const job =
+      uploads.find(
+        upload =>
+          upload.name ===
+          fileName
+      );
+
+    if (
+      !job
+    ) {
+
+      Alert.alert(
+        "Errore",
+        "Upload non disponibile"
+      );
+
+      return;
+    }
+
+    await updatePendingUpload(
+      job.id,
+      {
+        retryCount:
+          0,
+
+        status:
+          "retrying",
+
+        lastError:
+          null,
+      }
+    );
+
+    updateFileState(
+      job.id,
+      "syncing",
+      0,
+      job.name
+    );
+
+    await resumeUpload(
+      {
+        ...job,
+        retryCount: 0
+      }
+    );
+  }
+
   async function pickDocument(shouldEncrypt = false) {
+
+    const localUploadId =
+      `upload-${Date.now()}`;
+
 
     try {
 
@@ -395,6 +807,42 @@ export default function FilesScreen() {
         return;
       }
 
+      const optimisticFile =
+      {
+        id:
+          localUploadId,
+
+        itemType:
+          "file",
+
+        name:
+          file.name,
+
+        size:
+          file.size ?? 0,
+
+        created_at:
+          new Date()
+            .toISOString(),
+
+        updated_at:
+          new Date()
+            .toISOString(),
+
+        isUploading:
+          true,
+
+        is_encrypted:
+          shouldEncrypt
+      };
+
+      setUploadingFiles(
+        prev => [
+          optimisticFile,
+          ...prev
+        ]
+      );
+
       let uploadTarget =
         file;
 
@@ -404,9 +852,22 @@ export default function FilesScreen() {
       let encryptionMetadata =
         null;
 
+      let cryptoTempId =
+        null;
+
       if (
         shouldEncrypt
       ) {
+
+        cryptoTempId =
+          file.name;
+
+        updateFileState(
+          cryptoTempId,
+          "encrypting",
+          0,
+          file.name
+        );
 
         const masterKey =
           await getMasterKey();
@@ -415,10 +876,17 @@ export default function FilesScreen() {
           !masterKey
         ) {
 
+          setUploadingFiles(
+            prev =>
+              prev.filter(
+                item =>
+                  item.id !==
+                  localUploadId
+              )
+          );
+
           Alert.alert(
-
             "Errore",
-
             "Sessione sicura non disponibile"
           );
 
@@ -457,19 +925,54 @@ export default function FilesScreen() {
           encryptedFileKeyIV,
         };
 
+        const LARGE_FILE_THRESHOLD =
+          5 * 1024 * 1024;
+
         const encryptedUri =
-          await encryptFile(
 
-            file.uri,
+          file.size >
+            LARGE_FILE_THRESHOLD
 
-            fileKey,
+            ? await encryptFileChunked(
 
-            fileIV
-          );
+              file.uri,
+
+              fileKey,
+
+              fileIV,
+
+              (
+                percent
+              ) => {
+
+                updateFileState(
+                  cryptoTempId,
+                  "encrypting",
+                  percent,
+                  file.name
+                );
+              }
+            )
+
+            : await encryptFile(
+              file.uri,
+              fileKey,
+              fileIV
+            );
+
+        updateFileState(
+          cryptoTempId,
+          "encrypted",
+          100,
+          file.name
+        );
 
         uploadTarget = {
 
           ...file,
+
+          originalName:
+            file.name,
 
           uri:
             encryptedUri,
@@ -488,6 +991,49 @@ export default function FilesScreen() {
           file.uri
         );
 
+      await savePendingUpload({
+
+        id:
+          localUploadId,
+
+        uri:
+          uploadTarget.uri,
+
+        originalUri:
+          file.uri,
+
+        name:
+          file.name,
+
+        mimeType:
+          file.mimeType,
+
+        size:
+          file.size,
+
+        folderId:
+          currentFolder?.id
+          ?? null,
+
+        fileHash,
+
+        shouldEncrypt,
+
+        encryptionMetadata,
+
+        createdAt:
+          Date.now(),
+
+        status:
+          "pending",
+
+        retryCount:
+          0,
+
+        lastError:
+          null,
+      });
+
       console.log(
         "SHA256:",
         fileHash
@@ -504,16 +1050,22 @@ export default function FilesScreen() {
       } =
         await uploadFile(
 
-          uploadTarget,
+          {
+            ...uploadTarget,
+
+            originalName:
+              file.name,
+
+            uploadId:
+              localUploadId
+          },
 
           undefined,
 
           fileHash,
 
           shouldEncrypt
-
             ? encryptionMetadata
-
             : null
         );
 
@@ -591,15 +1143,60 @@ export default function FilesScreen() {
                         return;
                       }
 
+                      await removePendingUpload(
+                        localUploadId
+                      );
+
+                      const remaining =
+                        await getPendingUploads();
+
+                      console.log(
+                        "QUEUE AFTER REMOVE",
+                        remaining
+                      );
+
+                      removeFileState(
+                        localUploadId
+                      );
+
+                      console.log(
+                        "SYNC STATE REMOVED",
+                        localUploadId
+                      );
+
+
+
+                      await removePendingUpload(
+                        localUploadId
+                      );
+
+                      await removePendingUpload(
+                        localUploadId
+                      );
+
+                      console.log(
+                        "UPLOAD JOB REMOVED",
+                        localUploadId
+                      );
+
+                      removeFileState(
+                        localUploadId
+                      );
+
                       await reloadFiles();
 
+                      setUploadingFiles(
+                        prev =>
+                          prev.filter(
+                            item =>
+                              item.id !==
+                              localUploadId
+                          )
+                      );
+
                       Alert.alert(
-
                         "Upload riuscito",
-
-                        retryData
-                          .file
-                          .name
+                        file.name
                       );
 
                     } catch (
@@ -611,9 +1208,26 @@ export default function FilesScreen() {
                         error
                       );
 
+                      setUploadingFiles(
+                        prev =>
+                          prev.filter(
+                            item =>
+                              item.id !==
+                              localUploadId
+                          )
+                      );
+
+                      await removePendingUpload(
+                        localUploadId
+                      );
+
                       Alert.alert(
                         "Errore",
                         "Upload fallito"
+                      );
+                      updateFileState(
+                        "upload-error",
+                        "error"
                       );
                     }
                   },
@@ -666,13 +1280,28 @@ export default function FilesScreen() {
                         return;
                       }
 
+                      await removePendingUpload(
+                        localUploadId
+                      );
+
+                      removeFileState(
+                        localUploadId
+                      );
+
                       await reloadFiles();
+
+                      setUploadingFiles(
+                        prev =>
+                          prev.filter(
+                            item =>
+                              item.id !==
+                              localUploadId
+                          )
+                      );
 
                       Alert.alert(
                         "File sostituito",
-                        retryData
-                          .file
-                          .name
+                        retryData.file.name
                       );
 
                     } catch (
@@ -702,7 +1331,24 @@ export default function FilesScreen() {
         );
       }
 
+      await removePendingUpload(
+        localUploadId
+      );
+
+      removeFileState(
+        localUploadId
+      );
+
       await reloadFiles();
+
+      setUploadingFiles(
+        prev =>
+          prev.filter(
+            item =>
+              item.id !==
+              localUploadId
+          )
+      );
 
       Alert.alert(
         "Upload riuscito",
@@ -714,6 +1360,15 @@ export default function FilesScreen() {
       console.error(
         "Upload error:",
         error
+      );
+
+      setUploadingFiles(
+        prev =>
+          prev.filter(
+            item =>
+              item.id !==
+              localUploadId
+          )
       );
 
       Alert.alert(
@@ -1299,14 +1954,6 @@ export default function FilesScreen() {
       const baseUrl =
         await getBaseUrl();
 
-      setIsUploading(
-        true
-      );
-
-      setUploadProgress(
-        0
-      );
-
       const uploadTask =
         FileSystem
           .createUploadTask(
@@ -1371,9 +2018,6 @@ export default function FilesScreen() {
                   * 100
                 );
 
-              setUploadProgress(
-                percent
-              );
             }
           );
 
@@ -1411,6 +2055,10 @@ export default function FilesScreen() {
         );
       }
 
+      await deleteCachedFile(
+        fileToReplace
+      );
+
       await reloadFiles();
 
       Alert.alert(
@@ -1433,21 +2081,6 @@ export default function FilesScreen() {
       );
 
     } finally {
-
-      setTimeout(
-        () => {
-
-          setUploadProgress(
-            null
-          );
-
-          setIsUploading(
-            false
-          );
-        },
-
-        500
-      );
     }
   }
 
@@ -1576,6 +2209,15 @@ export default function FilesScreen() {
         throw new Error(
           data.error
         );
+      }
+
+      const file =
+        files.find(
+          f => f.id === fileId
+        );
+
+      if (file) {
+        await deleteCachedFile(file);
       }
 
       await reloadFiles();
@@ -2135,6 +2777,31 @@ ${username}`
         }
       );
 
+  const visibleUploadingFiles =
+    uploadingFiles.filter(
+      uploadingFile =>
+
+        !sortedFiles.some(
+          serverFile =>
+
+            (
+              serverFile.name
+                .replace(
+                  ".encrypted",
+                  ""
+                )
+            )
+            ===
+            (
+              uploadingFile.name
+                .replace(
+                  ".encrypted",
+                  ""
+                )
+            )
+        )
+    );
+
   const combinedItems =
     [
       ...visibleFolders.map(
@@ -2144,6 +2811,8 @@ ${username}`
             "folder",
         })
       ),
+
+      ...visibleUploadingFiles,
 
       ...sortedFiles.map(
         file => ({
@@ -2170,6 +2839,29 @@ ${username}`
       []
     )
   );
+
+  useEffect(() => {
+
+    async function
+      resumeQueue() {
+
+      if (
+        !serverOnline
+      ) {
+
+        return;
+      }
+
+      await processUploadQueue(
+        resumeUpload
+      );
+    }
+
+    resumeQueue();
+
+  }, [
+    serverOnline
+  ]);
 
   useEffect(() => {
 
@@ -2684,7 +3376,8 @@ ${share.name}`,
         <FileList
           data={combinedItems}
           gridView={gridView}
-          disabled={!serverOnline}
+          disabled={false}
+          serverOnline={serverOnline}
           showDeleteModal={showDeleteModal}
           setShowDeleteModal={setShowDeleteModal}
           selectedFolders={
@@ -2724,7 +3417,11 @@ ${share.name}`,
           }
 
           renderSubtitle={(item) =>
-            "2 MB • ieri"
+            `${formatFileSize(
+              Number(item.size || 0)
+            )} • ${formatDate(
+              item.updated_at
+            )}`
           }
 
           onDeleteFile={
@@ -2737,6 +3434,11 @@ ${share.name}`,
 
           onShareFile={
             openInSystem
+          }
+
+          onRetryUpload={
+
+            retryUpload
           }
 
           selectedFiles={
@@ -3153,122 +3855,6 @@ ${(
           moveItem
         }
       />
-
-      {
-        isUploading
-        && (
-
-          <View
-            style={{
-              position:
-                "absolute",
-
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-
-              backgroundColor:
-                "rgba(0,0,0,0.45)",
-
-              justifyContent:
-                "center",
-
-              alignItems:
-                "center",
-
-              zIndex:
-                999,
-            }}
-          >
-
-            <View
-              style={{
-                width:
-                  "80%",
-
-                backgroundColor:
-                  "white",
-
-                borderRadius:
-                  16,
-
-                padding:
-                  24,
-
-                alignItems:
-                  "center",
-              }}
-            >
-
-              <Text
-                style={{
-                  fontSize:
-                    18,
-
-                  fontWeight:
-                    "600",
-
-                  marginBottom:
-                    16,
-                }}
-              >
-                Caricamento file...
-              </Text>
-
-              <View
-                style={{
-                  width:
-                    "100%",
-
-                  height:
-                    10,
-
-                  backgroundColor:
-                    "#E5E5E5",
-
-                  borderRadius:
-                    999,
-
-                  overflow:
-                    "hidden",
-                }}
-              >
-
-                <View
-                  style={{
-                    width:
-                      `${uploadProgress ?? 0}%`,
-
-                    height:
-                      "100%",
-
-                    backgroundColor:
-                      "#007AFF",
-                  }}
-                />
-              </View>
-
-              <Text
-                style={{
-                  marginTop:
-                    12,
-
-                  fontSize:
-                    16,
-                }}
-              >
-                {
-                  uploadProgress
-                }
-                %
-              </Text>
-
-            </View>
-
-          </View>
-        )
-      }
 
     </SafeAreaView>
   );

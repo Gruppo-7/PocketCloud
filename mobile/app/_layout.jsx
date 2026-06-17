@@ -1,14 +1,10 @@
 import { Stack } from "expo-router";
-
 import { View } from "react-native";
-
 import { ServerProvider } from "../context/ServerContext";
-
 import ServerStatusBanner from "../components/ServerStatusBanner";
-
 import { useEffect } from "react";
-
 import { cleanupTemporaryFiles } from "../utils/crypto";
+import { SyncProvider } from "../context/SyncContext";
 
 export default function
   RootLayout() {
@@ -26,21 +22,26 @@ export default function
   return (
     <ServerProvider>
 
-      <View
-        style={{
-          flex: 1,
-        }}
-      >
+      <SyncProvider>
 
-        <ServerStatusBanner />
-
-        <Stack
-          screenOptions={{
-            headerShown:
-              false,
+        <View
+          style={{
+            flex: 1,
           }}
-        />
-      </View>
+        >
+
+          <ServerStatusBanner />
+
+          <Stack
+            screenOptions={{
+              headerShown:
+                false,
+            }}
+          />
+
+        </View>
+
+      </SyncProvider>
 
     </ServerProvider>
   );

@@ -114,6 +114,175 @@ export async function
 }
 
 export async function
+    encryptFileChunked(
+        inputUri,
+        key,
+        iv,
+        onProgress = null
+    ) {
+
+    console.log(
+        "File API:",
+        typeof FileSystem.File
+    );
+
+    console.log(
+        "Directory API:",
+        typeof FileSystem.Directory
+    );
+
+    const fileInfo =
+        await FileSystem
+            .getInfoAsync(
+                inputUri
+            );
+
+    const fileSize =
+        fileInfo.size;
+
+    const chunkSize =
+        512 * 1024; // 1MB
+
+    const encryptedPath =
+        `${FileSystem.cacheDirectory}encrypted.tmp`;
+
+    // reset file
+    await FileSystem
+        .writeAsStringAsync(
+            encryptedPath,
+            "",
+            {
+                encoding:
+                    FileSystem
+                        .EncodingType
+                        .UTF8,
+            }
+        );
+
+    let offset = 0;
+
+    while (
+        offset < fileSize
+    ) {
+
+        const currentLength =
+            Math.min(
+                chunkSize,
+                fileSize - offset
+            );
+
+        const content =
+            await FileSystem
+                .readAsStringAsync(
+                    inputUri,
+                    {
+                        encoding:
+                            FileSystem
+                                .EncodingType
+                                .Base64,
+
+                        position:
+                            offset,
+
+                        length:
+                            currentLength,
+                    }
+                );
+
+        const encrypted =
+            CryptoJS.AES.encrypt(
+
+                content,
+
+                CryptoJS.enc
+                    .Hex
+                    .parse(
+                        key
+                    ),
+
+                {
+
+                    iv:
+                        CryptoJS.enc
+                            .Base64
+                            .parse(
+                                iv
+                            ),
+
+                    mode:
+                        CryptoJS.mode
+                            .CBC,
+
+                    padding:
+                        CryptoJS.pad
+                            .Pkcs7,
+                }
+            );
+
+        await FileSystem
+            .writeAsStringAsync(
+
+                encryptedPath,
+
+                encrypted
+                    .ciphertext
+                    .toString(
+                        CryptoJS.enc
+                            .Base64
+                    ),
+
+                {
+                    encoding:
+                        FileSystem
+                            .EncodingType
+                            .UTF8,
+
+                    append:
+                        true,
+                }
+            );
+
+        offset +=
+            currentLength;
+
+        const percent =
+            Math.round(
+                (
+                    offset
+                    / fileSize
+                ) * 100
+            );
+
+        if (
+            onProgress
+        ) {
+
+            onProgress(
+                percent
+            );
+        }
+
+        // libera UI thread
+        if (
+            offset %
+            (32 * 1024 * 1024)
+            === 0
+        ) {
+
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        0
+                    )
+            );
+        }
+    }
+
+    return encryptedPath;
+}
+
+export async function
     decryptFile(
 
         encryptedUri,

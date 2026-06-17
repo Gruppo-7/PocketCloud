@@ -1,10 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-
-import { getCurrentUser } from "../utils/storage";
-
+import { getCurrentUser, getCachedFiles, saveCachedFiles, saveLastSync } from "../utils/storage";
 import { getBaseUrl } from "../utils/api";
-
 import { useServerStatus } from "../context/ServerContext";
+import { isFileCached } from "../utils/cacheManager";
 
 export default function
     useFiles(endpoint) {
@@ -19,28 +17,7 @@ export default function
         useCallback(
             async () => {
 
-                if (
-                    !serverChecked
-                ) {
-                    return;
-                }
-
-                if (
-                    !serverOnline
-                ) {
-
-                    setLoading(
-                        false
-                    );
-
-                    return;
-                }
-
                 try {
-
-                    setLoading(
-                        true
-                    );
 
                     const user =
                         await getCurrentUser();
@@ -49,7 +26,65 @@ export default function
                         !user
                     ) {
 
-                        setFiles([]);
+                        setFiles(
+                            []
+                        );
+
+                        setLoading(
+                            false
+                        );
+
+                        return;
+                    }
+
+                    // CACHE FIRST
+                    const cachedFiles =
+                        await getCachedFiles();
+
+                    if (
+                        cachedFiles.length > 0
+                    ) {
+
+                        const cachedFilesWithStatus =
+                            await Promise.all(
+
+                                cachedFiles.map(
+                                    async file => ({
+
+                                        ...file,
+
+                                        isCached:
+                                            await isFileCached(
+                                                file
+                                            )
+                                    })
+                                )
+                            );
+
+                        setFiles(
+                            cachedFilesWithStatus
+                        );
+
+                        setLoading(
+                            false
+                        );
+                    }
+
+                    // Server non ancora controllato
+                    if (
+                        !serverChecked
+                    ) {
+                        return;
+                    }
+
+                    // Offline → mostra cache
+                    if (
+                        !serverOnline
+                    ) {
+
+                        setLoading(
+                            false
+                        );
 
                         return;
                     }
@@ -63,15 +98,39 @@ export default function
                         );
 
                     const data =
-                        await response.json();
+                        await response
+                            .json();
 
-                    setFiles(
+                    const finalFiles =
                         Array.isArray(
                             data
                         )
-                            ? data
-                            : []
+                            ? await Promise.all(
+
+                                data.map(
+                                    async file => ({
+
+                                        ...file,
+
+                                        isCached:
+                                            await isFileCached(
+                                                file
+                                            )
+                                    })
+                                )
+                            )
+                            : [];
+
+                    setFiles(
+                        finalFiles
                     );
+
+                    // aggiorna cache
+                    await saveCachedFiles(
+                        finalFiles
+                    );
+
+                    await saveLastSync();
 
                 } catch (
                 error
@@ -79,6 +138,7 @@ export default function
 
                     console.error(
                         `Load ${endpoint} error:`,
+
                         error
                     );
 

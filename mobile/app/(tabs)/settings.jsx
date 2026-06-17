@@ -2,11 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text, View, TouchableOpacity, Alert, TextInput, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
+import { useFocusEffect } from "expo-router";
+import React from "react";
 import { router } from "expo-router";
 import { logout, getServerAddress, saveServerAddress, getCurrentUser } from "../../utils/storage";
 import { useServerStatus } from "../../context/ServerContext";
 import { cleanupTemporaryFiles } from "../../utils/crypto";
 import { getBaseUrl } from "../../utils/api";
+import { clearCache, getCacheSize } from "../../utils/cacheManager";
 
 export default function SettingsScreen() {
 
@@ -18,6 +21,7 @@ export default function SettingsScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [cacheSize, setCacheSize] = useState(0);
 
   // Logout utente
   async function handleLogout() {
@@ -25,6 +29,8 @@ export default function SettingsScreen() {
     try {
 
       await cleanupTemporaryFiles();
+
+      await clearCache();
 
       await logout();
 
@@ -44,6 +50,61 @@ export default function SettingsScreen() {
         "Impossibile effettuare logout"
       );
     }
+  }
+
+
+  //Pulizia cache
+  async function
+    handleClearCache() {
+
+    Alert.alert(
+
+      "Cancella cache",
+
+      "Tutti i file salvati offline verranno rimossi.",
+
+      [
+        {
+          text: "Annulla",
+          style: "cancel",
+        },
+
+        {
+          text: "Cancella",
+
+          style: "destructive",
+
+          onPress: async () => {
+
+            try {
+
+              await clearCache();
+
+              setCacheSize(0);
+
+              Alert.alert(
+                "Cache cancellata",
+                "I file offline sono stati rimossi."
+              );
+
+            } catch (
+            error
+            ) {
+
+              console.error(
+                "Clear cache error:",
+                error
+              );
+
+              Alert.alert(
+                "Errore",
+                "Impossibile cancellare la cache"
+              );
+            }
+          },
+        },
+      ]
+    );
   }
 
   // Eliminazione account
@@ -149,27 +210,37 @@ export default function SettingsScreen() {
     }
   }
 
-  useEffect(() => {
+  useFocusEffect(
 
-    async function
-      loadServer() {
+    React.useCallback(
+      () => {
 
-      const address =
-        await getServerAddress();
+        async function loadSettings() {
 
-      if (
-        address
-      ) {
+          const size =
+            await getCacheSize();
 
-        setServerAddress(
-          address
-        );
-      }
-    }
+          setCacheSize(
+            size
+          );
 
-    loadServer();
+          const address =
+            await getServerAddress();
 
-  }, []);
+          if (address) {
+
+            setServerAddress(
+              address
+            );
+          }
+        }
+
+        loadSettings();
+
+      },
+      []
+    )
+  );
 
   function
     isValidServerAddress(
@@ -349,6 +420,34 @@ export default function SettingsScreen() {
     return `${minutes} min fa`;
   }
 
+  function
+    formatCacheSize(
+      bytes
+    ) {
+
+    if (
+      bytes < 1024
+    ) {
+
+      return `${bytes} B`;
+    }
+
+    if (
+      bytes < 1024 * 1024
+    ) {
+
+      return `${(
+        bytes / 1024
+      ).toFixed(1)} KB`;
+    }
+
+    return `${(
+      bytes / (
+        1024 * 1024
+      )
+    ).toFixed(1)} MB`;
+  }
+
   return (
     <SafeAreaView
       style={{
@@ -491,9 +590,42 @@ export default function SettingsScreen() {
             marginBottom: 22,
           }}
         >
+          <Text
+
+            style={{
+
+              color: "#666",
+
+              paddingHorizontal: 18,
+
+              paddingTop: 18,
+
+              paddingBottom: 6,
+
+              fontSize: 14,
+
+            }}
+
+          >
+
+            Cache utilizzata: {
+
+              formatCacheSize(
+
+                cacheSize
+
+              )
+
+            }
+
+          </Text>
           <TouchableOpacity
             disabled={
               !serverOnline
+            }
+
+            onPress={
+              handleClearCache
             }
 
             style={{

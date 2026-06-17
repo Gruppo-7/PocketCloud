@@ -6,6 +6,7 @@ import * as IntentLauncher from "expo-intent-launcher";
 import { getMasterKey } from "./secureStorage";
 import { decryptFile, generateFileHash, scheduleTempFileCleanup, cleanupTemporaryFiles, decryptText } from "./crypto";
 import { getBaseUrl } from "./api";
+import { CACHE_DIR, ensureCacheDirectory } from "./cacheManager";
 
 export async function
     openFile(
@@ -14,31 +15,83 @@ export async function
 
     try {
 
+        await ensureCacheDirectory();
+
         const baseUrl =
             await getBaseUrl();
 
         const fileUri =
-            FileSystem
-                .documentDirectory
-            + file.name;
+            `${CACHE_DIR}${file.id}-${file.name}`;
 
         const downloadUrl =
             `${baseUrl}/files/download/${file.id}`;
 
-        console.log(
-            "Downloading:",
-            downloadUrl
-        );
-
-        const result =
+        const fileInfo =
             await FileSystem
-                .downloadAsync(
-                    downloadUrl,
+                .getInfoAsync(
                     fileUri
                 );
 
-        let finalUri =
-            result.uri;
+        let finalUri;
+
+        if (
+            fileInfo.exists
+        ) {
+
+            console.log(
+                "CACHE HIT:",
+                file.name
+            );
+
+            finalUri =
+                fileUri;
+
+        } else {
+
+            console.log(
+                "CACHE MISS:",
+                file.name
+            );
+
+            Alert.alert(
+                "Download in corso",
+                "Il file viene scaricato per l'apertura offline."
+            );
+
+            console.log(
+                "Downloading:",
+                downloadUrl
+            );
+
+            if (
+                fileInfo.exists
+            ) {
+
+                console.log(
+                    "CACHE HIT:",
+                    file.name
+                );
+
+                finalUri =
+                    fileUri;
+
+            } else {
+
+                console.log(
+                    "CACHE MISS:",
+                    file.name
+                );
+
+                const result =
+                    await FileSystem.downloadAsync(
+                        downloadUrl,
+                        fileUri
+                    );
+
+                finalUri =
+                    result.uri;
+            }
+        }
 
         if (
             file.is_encrypted
@@ -124,12 +177,11 @@ export async function
             finalUri =
                 await decryptFile(
 
-                    result.uri,
+                    finalUri,
 
                     decryptionKey,
 
-                    file
-                        .encryption_iv,
+                    file.encryption_iv,
 
                     file.name
                 );
@@ -188,8 +240,8 @@ export async function
         }
 
         console.log(
-            "Downloaded:",
-            result
+            "File URI:",
+            finalUri
         );
 
         if (
@@ -291,6 +343,8 @@ export async function
 
     try {
 
+        await ensureCacheDirectory();
+
         if (
             !file
         ) {
@@ -301,9 +355,7 @@ export async function
             await getBaseUrl();
 
         const fileUri =
-            FileSystem
-                .documentDirectory
-            + file.name;
+            `${CACHE_DIR}${file.id}-${file.name}`;
 
         const downloadUrl =
             `${baseUrl}/files/download/${file.id}`;
@@ -313,15 +365,57 @@ export async function
             downloadUrl
         );
 
-        const result =
+        const fileInfo =
             await FileSystem
-                .downloadAsync(
-                    downloadUrl,
+                .getInfoAsync(
                     fileUri
                 );
 
-        let finalUri =
-            result.uri;
+        if (
+            !fileInfo.exists
+            &&
+            !(await isServerReachable())
+        ) {
+
+            Alert.alert(
+                "File non disponibile",
+                "Questo file non è disponibile offline."
+            );
+
+            return;
+        }
+
+        let finalUri;
+
+        if (
+            fileInfo.exists
+        ) {
+
+            console.log(
+                "CACHE HIT:",
+                file.name
+            );
+
+            finalUri =
+                fileUri;
+
+        } else {
+
+            console.log(
+                "CACHE MISS:",
+                file.name
+            );
+
+            const result =
+                await FileSystem
+                    .downloadAsync(
+                        downloadUrl,
+                        fileUri
+                    );
+
+            finalUri =
+                result.uri;
+        }
 
         if (
             file.is_encrypted
@@ -389,12 +483,11 @@ export async function
             finalUri =
                 await decryptFile(
 
-                    result.uri,
+                    finalUri,
 
                     decryptionKey,
 
-                    file
-                        .encryption_iv,
+                    file.encryption_iv,
 
                     file.name
                 );
@@ -448,8 +541,8 @@ export async function
         }
 
         console.log(
-            "Downloaded for share:",
-            result
+            "Sharing URI:",
+            finalUri
         );
 
         const canShare =

@@ -4,6 +4,8 @@ import { useState } from "react";
 import FolderCard from "./FolderCard";
 import RenameModal from "./RenameModal";
 import { formatFileSize, formatDate } from "../utils/formatters";
+import SyncStatusBar from "./SyncStatusBar";
+import { useSyncStatus, Sy } from "../context/SyncContext";
 
 export default function FileList({
     data,
@@ -13,6 +15,7 @@ export default function FileList({
     selectionMode,
     setSelectionMode,
     disabled = false,
+    serverOnline,
     sharedMode = false,
     renderSubtitle,
     onDeleteFile,
@@ -34,9 +37,8 @@ export default function FileList({
     onRenameFolder,
     folders,
     files,
-
+    onRetryUpload,
     setItemToMove,
-
     setShowMoveModal
 }) {
     const [selectedFile, setSelectedFile] = useState(null);
@@ -48,6 +50,8 @@ export default function FileList({
     const [showRenameModal, setShowRenameModal] = useState(false);
 
     const [menuType, setMenuType] = useState(null);
+
+    const { syncStates } = useSyncStatus();
 
     function
         handleDelete() {
@@ -279,6 +283,49 @@ ${formatDate(
             ===
             "write";
 
+        console.log(
+            "FILE",
+            item.name,
+            item
+        );
+
+        const syncState =
+            Object.values(
+                syncStates
+            ).find(
+                sync =>
+
+                    sync.fileName ===
+                    item.name
+
+                    ||
+
+                    sync.fileName ===
+                    item.name.replace(
+                        ".encrypted",
+                        ""
+                    )
+            );
+
+
+        const fileDisabled =
+
+            item.itemType === "file"
+
+            &&
+
+            !serverOnline
+
+            &&
+
+            !item.isCached;
+
+        console.log(
+            "CACHE",
+            item.name,
+            item.isCached
+        );
+
         if (
             item.itemType
             ===
@@ -342,14 +389,44 @@ ${formatDate(
         return (
             <TouchableOpacity
                 disabled={
-                    disabled
+                    fileDisabled
                 }
 
                 onPress={() => {
 
                     if (
-                        disabled
+                        fileDisabled
                     ) {
+                        return;
+                    }
+
+                    const syncState =
+                        Object.values(
+                            syncStates
+                        ).find(
+                            sync =>
+
+                                sync.fileName ===
+                                item.name
+
+                                ||
+
+                                sync.fileName ===
+                                item.name.replace(
+                                    ".encrypted",
+                                    ""
+                                )
+                        );
+
+                    if (
+                        syncState?.state ===
+                        "error"
+                    ) {
+
+                        onRetryUpload?.(
+                            item.name
+                        );
+
                         return;
                     }
 
@@ -372,7 +449,7 @@ ${formatDate(
                 onLongPress={() => {
 
                     if (
-                        disabled
+                        fileDisabled
                     ) {
                         return;
                     }
@@ -393,7 +470,7 @@ ${formatDate(
 
                 style={{
                     opacity:
-                        disabled
+                        fileDisabled
                             ? 0.5
                             : 1,
 
@@ -591,21 +668,98 @@ ${formatDate(
                     </View>
 
                     {
-                        !gridView
+                        !serverOnline
                         &&
-                        renderSubtitle
+                        item.isCached
+                        && (
+
+                            <View
+                                style={{
+                                    backgroundColor: "#E8F5E9",
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 3,
+                                    borderRadius: 999,
+                                    marginTop: 6,
+                                    alignSelf: "flex-start",
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        color: "#2E7D32",
+                                        fontSize: 12,
+                                        fontWeight: "600",
+                                    }}
+                                >
+                                    📱 Disponibile offline
+                                </Text>
+                            </View>
+                        )
+                    }
+
+                    {
+                        !gridView
                         && (
 
                             <Text
                                 style={{
                                     color:
-                                        "gray",
+                                        syncState?.state
+                                            === "error"
+
+                                            ? "#FF3B30"
+
+                                            : "gray",
 
                                     marginTop:
                                         3,
+
+                                    fontSize:
+                                        13,
                                 }}
                             >
-                                {renderSubtitle(item)}
+                                {
+                                    syncState?.state === "encrypting"
+
+                                        ? `🔒 Crittografia ${syncState.progress ?? 0}%`
+
+                                        : syncState?.state === "syncing"
+
+                                            ? !fileDisabled
+
+                                                ? `⟳ Upload ${syncState.progress ?? 0}%`
+
+                                                : `⏸ In attesa server... ${syncState.progress ?? 0}%`
+
+                                            : syncState?.state === "waiting_server"
+
+                                                ? `⏸ In attesa server... ${syncState.progress ?? 0}%`
+
+                                                : syncState?.state === "pending_upload"
+
+                                                    ? "⏳ In coda"
+
+                                                    : syncState?.state === "offline"
+
+                                                        ? "📴 Offline"
+
+                                                        : syncState?.state === "pending_delete"
+
+                                                            ? "🗑 Eliminazione in attesa"
+
+                                                            : syncState?.state === "pending_rename"
+
+                                                                ? "✏️ Rinomina in attesa"
+
+                                                                : syncState?.state === "pending_replace"
+
+                                                                    ? "🔄 Aggiornamento in attesa"
+
+                                                                    : syncState?.state === "error"
+
+                                                                        ? "⚠️ Upload fallito"
+
+                                                                        : renderSubtitle?.(item)
+                                }
                             </Text>
                         )
                     }
@@ -614,13 +768,13 @@ ${formatDate(
 
                 <TouchableOpacity
                     disabled={
-                        disabled
+                        fileDisabled
                     }
 
                     onPress={() => {
 
                         if (
-                            disabled
+                            fileDisabled
                         ) {
                             return;
                         }
@@ -735,6 +889,20 @@ ${formatDate(
                     flexGrow: 1
                 }}
                 renderItem={renderItem}
+                ListFooterComponent={
+                    data.length > 0
+                        ? (
+                            <View
+                                style={{
+                                    marginTop: 6,
+                                    marginBottom: 12,
+                                }}
+                            >
+                                <SyncStatusBar />
+                            </View>
+                        )
+                        : null
+                }
                 ListEmptyComponent={
                     <Text>
                         Nessun file
@@ -924,11 +1092,12 @@ ${formatDate(
                         }
 
                         {
+                            serverOnline
+                            &&
                             !sharedMode
                             &&
                             !isFolderMenu
                             && (
-
                                 <TouchableOpacity
                                     onPress={() => {
 
@@ -960,6 +1129,8 @@ ${formatDate(
                         }
 
                         {
+                            serverOnline
+                            &&
                             !isFolderMenu
                             &&
                             canWriteSelected
@@ -1013,6 +1184,7 @@ ${formatDate(
                         }
 
                         {
+                            serverOnline &&
                             canWriteSelected && (
 
                                 <TouchableOpacity
@@ -1061,6 +1233,7 @@ ${formatDate(
                         }
 
                         {
+                            serverOnline &&
                             !sharedMode && (
 
                                 <TouchableOpacity
@@ -1142,106 +1315,110 @@ ${formatDate(
                             </Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            onPress={() => {
+                        {
+                            serverOnline && (
+                                <TouchableOpacity
+                                    onPress={() => {
 
-                                const file =
+                                        const file =
 
-                                    selectedFile;
+                                            selectedFile;
 
-                                const folder =
+                                        const folder =
 
-                                    selectedFolder;
+                                            selectedFolder;
 
-                                if (
+                                        if (
 
-                                    folder
+                                            folder
 
-                                ) {
+                                        ) {
 
-                                    setSelectedFolders(
+                                            setSelectedFolders(
 
-                                        [folder]
+                                                [folder]
 
-                                    );
+                                            );
 
-                                } else if (
+                                        } else if (
 
-                                    file
+                                            file
 
-                                ) {
+                                        ) {
 
-                                    setSelectedFiles(
+                                            setSelectedFiles(
 
-                                        [file]
+                                                [file]
 
-                                    );
+                                            );
 
-                                }
+                                        }
 
-                                setSelectedFile(
+                                        setSelectedFile(
 
-                                    null
+                                            null
 
-                                );
+                                        );
 
-                                setSelectedFolder(
+                                        setSelectedFolder(
 
-                                    null
+                                            null
 
-                                );
+                                        );
 
-                                setMenuType(
+                                        setMenuType(
 
-                                    null
+                                            null
 
-                                );
+                                        );
 
-                                if (
+                                        if (
 
-                                    setShowDeleteModal
+                                            setShowDeleteModal
 
-                                ) {
+                                        ) {
 
-                                    setShowDeleteModal(
+                                            setShowDeleteModal(
 
-                                        true
+                                                true
 
-                                    );
+                                            );
 
-                                } else if (
+                                        } else if (
 
-                                    file
+                                            file
 
-                                ) {
+                                        ) {
 
-                                    onDeleteFile?.(
+                                            onDeleteFile?.(
 
-                                        file.id
+                                                file.id
 
-                                    );
+                                            );
 
-                                }
+                                        }
 
-                            }}
+                                    }}
 
-                            style={{
-                                paddingVertical: 12,
-                            }}
-                        >
-                            <Text
-                                style={{
-                                    color: "red",
-                                    fontSize: 16,
-                                }}
-                            >
-                                {
-                                    sharedMode
-                                        ? "Rimuovi dai condivisi"
-                                        : "Elimina"
-                                }
-                            </Text>
-                        </TouchableOpacity>
+                                    style={{
+                                        paddingVertical: 12,
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            color: "red",
+                                            fontSize: 16,
+                                        }}
+                                    >
+                                        {
+                                            sharedMode
+                                                ? "Rimuovi dai condivisi"
+                                                : "Elimina"
+                                        }
+                                    </Text>
+                                </TouchableOpacity>
+                            )
+                        }
                     </Pressable>
                 </View>
             </Modal >
