@@ -89,6 +89,8 @@ async function
       return;
     }
 
+    markServerAlive();
+
     Alert.alert(
 
       "Condivisione riuscita",

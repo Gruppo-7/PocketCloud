@@ -1,25 +1,18 @@
-import { View, Text } from "react-native";
-import { useServerStatus } from "../context/ServerContext";
 import { useEffect, useState } from "react";
-import { getLastSync } from "../utils/storage";
+import { Text, View } from "react-native";
+import { useServerStatus } from "../context/ServerContext";
 import { useSyncStatus } from "../context/SyncContext";
+import { getLastSync } from "../utils/storage";
 
 export default function SyncStatusBar() {
 
     const { syncStates } = useSyncStatus();
 
-    const {
-        serverOnline
-    } =
-        useServerStatus();
+    const { serverOnline } = useServerStatus();
 
-    const [
-        lastSync,
-        setLastSync
-    ] =
-        useState(
-            null
-        );
+    const [lastSync, setLastSync] = useState(null);
+
+    const [tick, setTick] = useState(0);
 
     useEffect(() => {
 
@@ -36,9 +29,40 @@ export default function SyncStatusBar() {
 
         loadSync();
 
-    }, [
-        serverOnline
-    ]);
+        const interval =
+            setInterval(
+                loadSync,
+                5000
+            );
+
+        return () =>
+            clearInterval(
+                interval
+            );
+
+    }, []);
+
+    useEffect(() => {
+
+        const interval =
+            setInterval(
+                () => {
+
+                    setTick(
+                        prev =>
+                            prev + 1
+                    );
+
+                },
+                1000
+            );
+
+        return () =>
+            clearInterval(
+                interval
+            );
+
+    }, []);
 
     function getGlobalSyncState() {
 

@@ -12,26 +12,22 @@ export function
         children,
     }) {
 
-    const [
-        serverOnline,
-        setServerOnline,
-    ] = useState(
-        false
-    );
+    const [serverOnline, setServerOnline] = useState(false);
 
-    const [
-        serverChecked,
-        setServerChecked,
-    ] = useState(
-        false
-    );
+    const [serverChecked, setServerChecked] = useState(false);
 
-    const [
-        lastCheck,
-        setLastCheck,
-    ] = useState(
-        null
-    );
+    const [lastCheck, setLastCheck] = useState(null);
+
+    function markServerAlive() {
+
+        setServerOnline(
+            true
+        );
+
+        setLastCheck(
+            new Date().toISOString()
+        );
+    }
 
     async function
         checkServer() {
@@ -148,6 +144,7 @@ export function
                 serverChecked,
                 lastCheck,
                 checkServer,
+                markServerAlive
             }}
         >
             {children}

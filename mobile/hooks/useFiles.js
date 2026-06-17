@@ -11,7 +11,7 @@ export default function
 
     const [loading, setLoading] = useState(true);
 
-    const { serverOnline, serverChecked } = useServerStatus();
+    const { serverOnline, serverChecked, markServerAlive } = useServerStatus();
 
     const loadFiles =
         useCallback(
@@ -131,6 +131,8 @@ export default function
                     );
 
                     await saveLastSync();
+
+                    markServerAlive();
 
                 } catch (
                 error

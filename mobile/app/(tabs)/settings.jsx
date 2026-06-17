@@ -13,7 +13,7 @@ import { clearCache, getCacheSize } from "../../utils/cacheManager";
 
 export default function SettingsScreen() {
 
-  const { serverOnline, lastCheck } = useServerStatus();
+  const { serverOnline, lastCheck, markServerAlive } = useServerStatus();
   const [serverAddress, setServerAddress] = useState("");
   const [showServerModal, setShowServerModal] = useState(false);
   const [tempServerAddress, setTempServerAddress] = useState("");
@@ -349,6 +349,8 @@ export default function SettingsScreen() {
       await saveServerAddress(
         address
       );
+
+      markServerAlive();
 
       setServerAddress(
         address

@@ -54,7 +54,7 @@ export default function FilesScreen() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [showSelectionMenu, setShowSelectionMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const { serverOnline } = useServerStatus();
+  const { serverOnline, markServerAlive } = useServerStatus();
   const { files, setFiles, reloadFiles } = useFiles("files");
   const { folders, setFolders, reloadFolders } = useFolders();
   const [showCreateFolder, setShowCreateFolder] = useState(false);
@@ -1433,6 +1433,8 @@ export default function FilesScreen() {
         )
       );
 
+      markServerAlive();
+
     } catch (
     error
     ) {
@@ -1523,6 +1525,8 @@ export default function FilesScreen() {
                 : folder
           )
       );
+
+      markServerAlive();
 
       Alert.alert(
         "Rinominata",
@@ -2297,6 +2301,8 @@ export default function FilesScreen() {
           )
       );
 
+      markServerAlive();
+
     } catch (
     error
     ) {
@@ -2412,6 +2418,8 @@ export default function FilesScreen() {
 
       await loadPendingShares();
 
+      markServerAlive();
+
       Alert.alert(
 
         "Condivisione accettata",
@@ -2476,6 +2484,8 @@ export default function FilesScreen() {
               shareId
           )
       );
+
+      markServerAlive();
 
       Alert.alert(
         "Condivisione rifiutata"
@@ -2623,6 +2633,8 @@ export default function FilesScreen() {
 
         return;
       }
+
+      markServerAlive();
 
       Alert.alert(
         "Condivisione riuscita",
