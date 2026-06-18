@@ -221,6 +221,9 @@ Persistent data:
 * Uploaded files
 * Encrypted file metadata
 * Sharing metadata
+* Folder metadata
+* Pending share metadata
+* Encryption key metadata
 
 Data survives:
 
@@ -288,8 +291,14 @@ Encrypted files:
 
 * are encrypted locally on-device
 * use AES-256-CBC encryption
+* use per-file encryption keys (Encryption v2)
 * never expose plaintext to the server
 * remain encrypted at rest
+
+Integrity protection:
+
+* SHA256 fingerprint verification before opening files
+* corruption/tampering detection
 
 Master key security:
 
@@ -298,4 +307,20 @@ Master key security:
 * never transmitted to the server
 * protected through password-based encryption
 
-Shared encrypted files use local re-encryption, meaning the server never gains access to decrypted file content.
+Shared encrypted files:
+
+* use local re-encryption
+* recipient receives a share-specific encrypted file key
+* server never gains access to decrypted content
+
+## Offline Support
+
+PocketCloud supports offline file access.
+
+Features:
+
+* local file cache
+* automatic cache invalidation when files are updated
+* separate cache for personal files and shared files
+* offline opening of previously downloaded files
+* cached files remain accessible when the server is unavailable
