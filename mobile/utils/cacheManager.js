@@ -44,10 +44,26 @@ export async function isFileCached(
     const filePath =
         `${CACHE_DIR}${file.id}-${cacheVersion}-${file.name}`;
 
+    console.log(
+
+        "CACHE CHECK",
+
+        filePath
+
+    );
+
     const info =
         await FileSystem.getInfoAsync(
             filePath
         );
+
+    console.log(
+
+        "CACHE EXISTS",
+
+        file.name,
+
+        info.exists);
 
     return info.exists;
 }

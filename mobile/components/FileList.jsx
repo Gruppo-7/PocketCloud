@@ -290,22 +290,7 @@ ${formatDate(
         );
 
         const syncState =
-            Object.values(
-                syncStates
-            ).find(
-                sync =>
-
-                    sync.fileName ===
-                    item.name
-
-                    ||
-
-                    sync.fileName ===
-                    item.name.replace(
-                        ".encrypted",
-                        ""
-                    )
-            );
+            syncStates[item.id];
 
 
         const fileDisabled =
@@ -401,22 +386,7 @@ ${formatDate(
                     }
 
                     const syncState =
-                        Object.values(
-                            syncStates
-                        ).find(
-                            sync =>
-
-                                sync.fileName ===
-                                item.name
-
-                                ||
-
-                                sync.fileName ===
-                                item.name.replace(
-                                    ".encrypted",
-                                    ""
-                                )
-                        );
+                        syncStates[item.id];
 
                     if (
                         syncState?.state ===

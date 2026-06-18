@@ -7,6 +7,11 @@ import { isFileCached, deleteCachedFile } from "../utils/cacheManager";
 export default function
     useFiles(endpoint) {
 
+    const cacheKey =
+        endpoint === "shared"
+            ? "cachedSharedFiles"
+            : "cachedFiles";
+
     const [files, setFiles] = useState([]);
 
     const [loading, setLoading] = useState(true);
@@ -39,7 +44,9 @@ export default function
 
                     // CACHE FIRST
                     const cachedFiles =
-                        await getCachedFiles();
+                        await getCachedFiles(
+                            cacheKey
+                        );
 
                     if (
                         cachedFiles.length > 0
@@ -91,6 +98,19 @@ export default function
 
                     const baseUrl =
                         await getBaseUrl();
+
+                    /* Il server potrebbe essere
+
+   andato offline mentre
+
+   caricavamo la cache */
+
+                    if (!serverOnline) {
+
+                        setLoading(false);
+
+                        return;
+                    }
 
                     const response =
                         await fetch(
@@ -159,20 +179,28 @@ export default function
 
                     // aggiorna cache
                     await saveCachedFiles(
-                        finalFiles
+                        finalFiles,
+                        cacheKey
                     );
 
                     await saveLastSync();
 
                     markServerAlive();
 
-                } catch (
-                error
-                ) {
+                } catch (error) {
+
+                    if (
+                        error?.message ===
+                        "Network request failed"
+                    ) {
+
+                        setLoading(false);
+
+                        return;
+                    }
 
                     console.error(
                         `Load ${endpoint} error:`,
-
                         error
                     );
 

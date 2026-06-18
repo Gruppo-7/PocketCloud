@@ -235,7 +235,8 @@ export async function
 
 export async function
     saveCachedFiles(
-        files
+        files,
+        cacheKey = "cachedFiles"
     ) {
 
     try {
@@ -264,7 +265,7 @@ export async function
 }
 
 export async function
-    getCachedFiles() {
+    getCachedFiles(cacheKey = "cachedFiles") {
 
     try {
 
@@ -302,59 +303,46 @@ export async function
 
 export async function
     saveCachedFolders(
-        folders
+        folders,
+        cacheKey = "cachedFolders"
     ) {
 
     try {
 
-        await AsyncStorage
-            .setItem(
+        await AsyncStorage.setItem(
+            cacheKey,
+            JSON.stringify(folders)
+        );
 
-                "cachedFolders",
-
-                JSON.stringify(
-                    folders
-                )
-            );
-
-    } catch (
-    error
-    ) {
+    } catch (error) {
 
         console.error(
-
             "Save cached folders error:",
-
             error
         );
     }
 }
 
 export async function
-    getCachedFolders() {
+    getCachedFolders(
+        cacheKey = "cachedFolders"
+    ) {
 
     try {
 
         const folders =
-            await AsyncStorage
-                .getItem(
-                    "cachedFolders"
-                );
+            await AsyncStorage.getItem(
+                cacheKey
+            );
 
         return folders
-            ? JSON.parse(
-                folders
-            )
+            ? JSON.parse(folders)
             : [];
 
-    } catch (
-    error
-    ) {
+    } catch (error) {
 
         console.error(
-
             "Get cached folders error:",
-
             error
         );
 
