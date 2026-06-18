@@ -783,6 +783,16 @@ ${formatDate(
                             "file"
                         );
 
+                        console.log(
+
+                            "SETTING FILE",
+
+                            item.permission,
+
+                            item.name
+
+                        );
+
                         setSelectedFile(
                             item
                         );
@@ -821,12 +831,37 @@ ${formatDate(
         ===
         "folder";
 
+    console.log(
+        "MODAL FILE",
+        selectedFile
+    );
+
+    console.log(
+        "MODAL PERMISSION",
+        selectedFile?.permission
+    );
+
+    console.log(
+        "CAN WRITE",
+        !sharedMode ||
+        selectedFile?.permission === "write"
+    );
+
     const canWriteSelected =
         !sharedMode
         ||
         selectedFile?.permission
         ===
         "write";
+
+    if (selectedFile) {
+
+        console.log(
+            "SELECTED FILE REAL",
+            selectedFile.permission,
+            selectedFile.name
+        );
+    }
 
     return (
         <>

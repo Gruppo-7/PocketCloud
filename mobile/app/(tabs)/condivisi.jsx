@@ -626,7 +626,7 @@ export default function SharedScreen() {
 
   async function
     renameFile(
-      fileId,
+      file,
       newName
     ) {
 
@@ -637,7 +637,7 @@ export default function SharedScreen() {
 
       const response =
         await fetch(
-          `${baseUrl}/files/${fileId}/rename`,
+          `${baseUrl}/files/${file.id}/rename`,
           {
 
             method:
@@ -973,6 +973,7 @@ export default function SharedScreen() {
           sharedMode={
             true
           }
+          serverOnline={serverOnline}
 
           setSelectedFiles={
             setSelectedFiles

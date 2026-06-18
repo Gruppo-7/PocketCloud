@@ -20,8 +20,11 @@ export async function
         const baseUrl =
             await getBaseUrl();
 
+        const cacheVersion =
+            new Date(file.updated_at).getTime();
+
         const fileUri =
-            `${CACHE_DIR}${file.id}-${file.name}`;
+            `${CACHE_DIR}${file.id}-${cacheVersion}-${file.name}`;
 
         const downloadUrl =
             `${baseUrl}/files/download/${file.id}`;
@@ -354,8 +357,11 @@ export async function
         const baseUrl =
             await getBaseUrl();
 
+        const cacheVersion =
+            new Date(file.updated_at).getTime();
+
         const fileUri =
-            `${CACHE_DIR}${file.id}-${file.name}`;
+            `${CACHE_DIR}${file.id}-${cacheVersion}-${file.name}`;
 
         const downloadUrl =
             `${baseUrl}/files/download/${file.id}`;

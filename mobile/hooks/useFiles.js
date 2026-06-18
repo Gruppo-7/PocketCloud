@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { getCurrentUser, getCachedFiles, saveCachedFiles, saveLastSync } from "../utils/storage";
 import { getBaseUrl } from "../utils/api";
 import { useServerStatus } from "../context/ServerContext";
-import { isFileCached } from "../utils/cacheManager";
+import { isFileCached, deleteCachedFile } from "../utils/cacheManager";
 
 export default function
     useFiles(endpoint) {
@@ -102,24 +102,56 @@ export default function
                             .json();
 
                     const finalFiles =
-                        Array.isArray(
-                            data
-                        )
+                        Array.isArray(data)
+
                             ? await Promise.all(
 
                                 data.map(
-                                    async file => ({
+                                    async file => {
 
-                                        ...file,
+                                        const cachedFile =
+                                            cachedFiles.find(
+                                                cached =>
+                                                    cached.id === file.id
+                                            );
 
-                                        isCached:
-                                            await isFileCached(
+                                        if (
+                                            cachedFile &&
+                                            cachedFile.updated_at !== file.updated_at
+                                        ) {
+
+                                            console.log(
+                                                "CACHE INVALIDATED",
+                                                file.name
+                                            );
+
+                                            await deleteCachedFile(
                                                 file
-                                            )
-                                    })
+                                            );
+
+                                            return {
+                                                ...file,
+                                                isCached: false
+                                            };
+                                        }
+
+                                        return {
+                                            ...file,
+                                            isCached:
+                                                await isFileCached(
+                                                    file
+                                                )
+                                        };
+                                    }
                                 )
                             )
+
                             : [];
+
+                    console.log(
+                        "FILES FROM SERVER",
+                        finalFiles
+                    );
 
                     setFiles(
                         finalFiles

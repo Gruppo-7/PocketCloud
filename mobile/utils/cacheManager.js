@@ -38,8 +38,11 @@ export async function isFileCached(
     file
 ) {
 
+    const cacheVersion =
+        new Date(file.updated_at).getTime();
+
     const filePath =
-        `${CACHE_DIR}${file.id}-${file.name}`;
+        `${CACHE_DIR}${file.id}-${cacheVersion}-${file.name}`;
 
     const info =
         await FileSystem.getInfoAsync(
@@ -77,8 +80,11 @@ export async function deleteCachedFile(
     file
 ) {
 
+    const cacheVersion =
+        new Date(file.updated_at).getTime();
+
     const filePath =
-        `${CACHE_DIR}${file.id}-${file.name}`;
+        `${CACHE_DIR}${file.id}-${cacheVersion}-${file.name}`;
 
     await FileSystem.deleteAsync(
         filePath,
