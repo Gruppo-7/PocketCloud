@@ -191,20 +191,6 @@ export default function SharedScreen() {
     );
   };
 
-  useFocusEffect(
-
-    React.useCallback(
-      () => {
-
-        reloadFiles();
-
-        reloadMyFiles();
-      },
-
-      []
-    )
-  );
-
   useEffect(() => {
 
     async function

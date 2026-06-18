@@ -48,34 +48,27 @@ export default function
                             cacheKey
                         );
 
-                    if (
-                        cachedFiles.length > 0
-                    ) {
+                    const cachedFilesWithStatus =
+                        await Promise.all(
 
-                        const cachedFilesWithStatus =
-                            await Promise.all(
-
-                                cachedFiles.map(
-                                    async file => ({
-
-                                        ...file,
-
-                                        isCached:
-                                            await isFileCached(
-                                                file
-                                            )
-                                    })
-                                )
-                            );
-
-                        setFiles(
-                            cachedFilesWithStatus
+                            cachedFiles.map(
+                                async file => ({
+                                    ...file,
+                                    isCached:
+                                        await isFileCached(
+                                            file
+                                        )
+                                })
+                            )
                         );
 
-                        setLoading(
-                            false
-                        );
-                    }
+                    setFiles(
+                        cachedFilesWithStatus
+                    );
+
+                    setLoading(
+                        false
+                    );
 
                     // Server non ancora controllato
                     if (

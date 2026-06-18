@@ -244,7 +244,7 @@ export async function
         await AsyncStorage
             .setItem(
 
-                "cachedFiles",
+                cacheKey,
 
                 JSON.stringify(
                     files
@@ -272,7 +272,7 @@ export async function
         const files =
             await AsyncStorage
                 .getItem(
-                    "cachedFiles"
+                    cacheKey
                 );
 
         return files
